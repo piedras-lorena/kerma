@@ -146,4 +146,80 @@ apply(operaciones_col1,1,function(x) operaciones_col_2(x['columna_2'],x['columna
 
 # Tablas especiales -------------------------------------------------------
 
+#TABLA ESPECIAL 2.19
+tabla_encuestas_f['valueNumeric'] <- sapply(tabla_encuestas_f$valueNumeric,as.numeric)
+abogados <- tabla_encuestas_f %>% filter(description == 'Abogado' & description_1 == 'Tarifa' & questionId %in% c(113,114)) %>%
+                group_by(userId) %>% summarise(total_abogados = sum(valueNumeric,na.rm=T))
 
+socios <- tabla_encuestas_f %>% filter(description == 'Socio' & questionId %in% c(96,97)) %>%
+          group_by(userId) %>% summarise(total_socios = sum(valueNumeric,na.rm=T))
+
+socios_propietarios <- tabla_encuestas_f %>% filter(groupHumanCapital == 4 & questionId %in% c(96,97)) %>%
+                       group_by(userId) %>% summarise(total_socios_prop = sum(valueNumeric,na.rm=T))
+cat_administrativo <- c('Gerente de Administración','Staff de Administración','Apoyo de Administración')
+rsp_administrativo <- c(243,244,264,265,287,288)
+administrativo <- tabla_encuestas_f %>% filter(description %in% cat_administrativo & questionId %in% rsp_administrativo) %>%
+                  group_by(userId) %>% summarise(total_admin = sum(valueNumeric,na.rm=T))
+
+rsp_profesional <- c(96,97,113,114,192,193)
+profesional <- tabla_encuestas_f %>% filter(questionId %in% rsp_profesional) %>%
+               group_by(userId) %>% summarise(total_profesional = sum(valueNumeric,na.rm=T))
+
+pasantes <- tabla_encuestas_f %>% filter(questionId %in% c(192,193)) %>%
+            group_by(userId) %>% summarise(total_pasantes = sum(valueNumeric,na.rm=T))
+
+group_hc <- c(23,34,35,36)
+secretarias <- tabla_encuestas_f %>% filter(groupHumanCapital %in% group_hc & questionId %in% c(264,265)) %>%
+               group_by(userId) %>% summarise(total_secretarias = sum(valueNumeric,na.rm=T))
+
+archivo <- tabla_encuestas_f %>% filter(groupHumanCapital == 24 & questionId %in% c(287,288)) %>%
+           group_by(userId) %>% summarise(total_archivo = sum(valueNumeric,na.rm=T))
+
+rsp_total <- c(96,97,113,114,192,193,243,244,264,265,287,288,164,165)
+total <- tabla_encuestas_f %>% filter(questionId %in% rsp_total) %>%
+         group_by(userId) %>% summarise(total = sum(valueNumeric,na.rm=T))
+
+ingresos <- tabla_encuestas_f %>% filter(questionId == 12) %>%
+           group_by(userId) %>% summarise(ingresos = sum(valueNumeric,na.rm=T))
+
+razones <- total %>% full_join(archivo) %>% full_join(secretarias) %>% full_join(pasantes) %>% full_join(profesional) %>% full_join(administrativo) %>% 
+           full_join(socios) %>% full_join(abogados) %>% full_join(socios_propietarios) %>% full_join(ingresos) %>%
+           mutate('total_pasantes_abogados' = total_abogados + total_pasantes,
+                  '2_19_1' = total_abogados/total_socios,
+                  '2_19_2' = total_admin/total_profesional,
+                  '2_19_3' = total_pasantes/total_socios,
+                  '2_19_4' = total_secretarias/total_abogados,
+                  '2_19_5' = total_secretarias/total_pasantes,
+                  '2_19_6' = total_secretarias/total_socios,
+                  '2_19_7' = total_archivo/total_abogados,
+                  '2_19_8' = total_archivo/total,
+                  '7_3_1' = ingresos/total_socios_prop,
+                  '7_3_2' = ingresos/total_socios,
+                  '7_3_3' = ingresos/total_abogados,
+                  '7_3_4' = ingresos/total_pasantes_abogados) %>% 
+           select(userId,`2_19_1`:`7_3_4`)
+
+mapeo_nombres_razones <- data.frame(nombre_viejo = c('Abogados/Socios',
+                                                     'Administrativo/Profesional',
+                                                     'Pasantes/Socios',
+                                                     'Secretarias/Abogados',
+                                                     'Secretarias/Pasantes',
+                                                     'Secretarias/Socios',
+                                                     'Archivo/Abogados',
+                                                     'Archivo/Total personal',
+                                                     'Ingresos/Socios propietarios',
+                                                     'Ingresos/Socios',
+                                                     'Ingresos/Abogados',
+                                                     'Ingresos/Abogados y pasantes'),
+                                    nombre_nuevo = c('2_19_1','2_19_2','2_19_3',
+                                                     '2_19_4','2_19_5','2_19_6',
+                                                     '2_19_7','2_19_8',
+                                                     '7_3_1','7_3_2','7_3_3',
+                                                     '7_3_4'),
+                                    respondido = rep(NA,12),
+                                    stringsAsFactors = F)
+
+mapeo_nombres <- mapeo_nombres %>% bind_rows(mapeo_nombres_razones)
+
+
+# TABLA ESPECIAL 
