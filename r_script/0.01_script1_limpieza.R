@@ -111,7 +111,7 @@ operaciones <- read_csv('Proyectos/Otros/kerma/data/interim/operaciones_pregunta
                       nombre_columna_nueva = ifelse(is.na(subseccion),paste(seccion,renglon,sep='_') , paste(seccion,subseccion,renglon,sep='_'))) %>% 
   select(columna_1,columna_2,columna_3,funcion,nombre_columna_nueva)
 
-tabla_reporte <- data.frame(user_id=tabla_encuesta_wide$userId)
+tabla_reporte <- data.frame(userId=tabla_encuesta_wide$userId)
 mapeo_nombres <- data.frame(nombre_viejo = character(0),
                             nombre_nuevo = character(0),
                             respondido = numeric(0), stringsAsFactors = F)
@@ -119,7 +119,7 @@ mapeo_nombres <- data.frame(nombre_viejo = character(0),
 
 apply(operaciones,1,function(x) operaciones_col(x['columna_1'],x['columna_2'],x['columna_3'],x['funcion'],x['nombre_columna_nueva']))
 
-tabla_reporte_l <- tabla_reporte %>% gather(key = seccion, value = valor,-user_id)
+tabla_reporte_l <- tabla_reporte %>% gather(key = seccion, value = valor,-userId)
 
 # Agarramos aleatoriamente 2 de cada operación para checar que estén bien hechas
 chequeo <- mapeo_nombres %>% left_join(operaciones %>% select(nombre_columna_nueva,funcion),by = c('nombre_nuevo'='nombre_columna_nueva'))
@@ -135,13 +135,17 @@ merge_chequeo <- tabla_reporte_l %>% left_join(operaciones %>% select(nombre_col
 # Las secciones 2.1,2.2,2.3 tienen tres columnas
 operaciones_col1 <- operaciones %>% filter(grepl('^2_1_|^2_2_|^2_3_',nombre_columna_nueva))
 
-tabla_reporte_col_1 <- data.frame(user_id=tabla_encuesta_wide$userId)
-
+tabla_reporte_col_1 <- data.frame(userId=tabla_encuesta_wide$userId)
 apply(operaciones_col1,1,function(x) operaciones_col_1(x['columna_1'],x['columna_2'],x['nombre_columna_nueva']))
+tabla_reporte_col_1_l <- tabla_reporte_col_1 %>% gather(key = seccion, value= porcent_hombres,-userId)
 
-tabla_reporte_col_2 <- data.frame(user_id=tabla_encuesta_wide$userId)
-
+tabla_reporte_col_2 <- data.frame(userId=tabla_encuesta_wide$userId)
 apply(operaciones_col1,1,function(x) operaciones_col_2(x['columna_2'],x['columna_1'],x['nombre_columna_nueva']))
+tabla_reporte_col_2_l <- tabla_reporte_col_2 %>% gather(key = seccion, value= porcent_mujeres,-userId)
+
+# Juntamos todas las tablas en una
+tabla_reporte_todas <- tabla_reporte_l %>% left_join(tabla_reporte_col_1_l) %>% left_join(tabla_reporte_col_2_l)
+
 
 
 # Tablas especiales -------------------------------------------------------
@@ -149,7 +153,7 @@ apply(operaciones_col1,1,function(x) operaciones_col_2(x['columna_2'],x['columna
 #TABLA ESPECIAL 2.19
 tabla_encuestas_f['valueNumeric'] <- sapply(tabla_encuestas_f$valueNumeric,as.numeric)
 abogados <- tabla_encuestas_f %>% filter(description == 'Abogado' & description_1 == 'Tarifa' & questionId %in% c(113,114)) %>%
-                group_by(userId) %>% summarise(total_abogados = sum(valueNumeric,na.rm=T))
+            group_by(userId) %>% summarise(total_abogados = sum(valueNumeric,na.rm=T))
 
 socios <- tabla_encuestas_f %>% filter(description == 'Socio' & questionId %in% c(96,97)) %>%
           group_by(userId) %>% summarise(total_socios = sum(valueNumeric,na.rm=T))
@@ -220,6 +224,6 @@ mapeo_nombres_razones <- data.frame(nombre_viejo = c('Abogados/Socios',
                                     stringsAsFactors = F)
 
 mapeo_nombres <- mapeo_nombres %>% bind_rows(mapeo_nombres_razones)
-
-
-# TABLA ESPECIAL 
+tabla_reporte_todas <- rbindlist(list(tabla_reporte_todas, razones_l), fill=T)
+write_csv(tabla_reporte_todas,'Proyectos/Otros/kerma/data/interim/tabla_reporte_prueba.csv')
+write_csv(mapeo_nombres,'Proyectos/Otros/kerma/data/interim/mapeo_nombres.csv')
