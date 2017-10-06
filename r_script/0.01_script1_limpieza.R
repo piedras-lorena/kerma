@@ -8,13 +8,13 @@ library(readr)
 library(data.table)
 library(stringr)
 
-source('Proyectos/Otros/kerma/R/utils_script1.R')
+source('Proyectos/Otros/kerma/r_script/lib/utils_script1.R')
 
 
 # Mapeo de preguntas ------------------------------------------------------
 
 #Importamos tabla donde vienen las preguntas que se van a usar
-mapeo_preguntas<-read_csv('Proyectos/Otros/kerma/data/interim/mappeo_preguntas - mappeo (1).csv')
+mapeo_preguntas<-read_csv('Proyectos/Otros/kerma/data/interim/mappeo_preguntas - mappeo.csv', col_types = cols(.default = "c"))
 
 #Filtramos y arreglamos rangos de números
 mapeo_p_dash<-mapeo_preguntas %>% filter(grepl('-',questionId_tabla))
@@ -37,7 +37,7 @@ preguntas<-unique(unlist(strsplit(preguntas$questionId_tabla, split=",")))
 
 # Tabla de respuestas -----------------------------------------------------
 # Leemos todas las encuestas de los despachos y las pegamos en una tabla grande
-tabla_encuestas<-read_csv('Proyectos/Otros/kerma/data/raw/respuestas_despachos/20170914_encuesta_prueba.csv')
+tabla_encuestas<-read_csv('Proyectos/Otros/kerma/data/raw/respuestas_despachos/20170914_encuesta_prueba.csv', col_types = cols(.default = "c"))
 
 
 filesEncuesta <- list.files(path = "Proyectos/Otros/kerma/data/raw/respuestas_despachos/", pattern= "20170914_")
@@ -52,6 +52,7 @@ tabla_encuestas$description_2_t<- tolower(str_replace_all(tabla_encuestas$descri
 tabla_encuestas$description_t<- tolower(str_replace_all(tabla_encuestas$description,c('-'='','  '=' ','   '=' ',' '='_')))
 
 preguntas <- as.numeric(preguntas)
+tabla_encuestas$questionId <- sapply(tabla_encuestas$questionId,as.numeric)
 tabla_encuestas_f  <- tabla_encuestas %>% filter(questionId %in% preguntas) %>%
                       mutate(id_unico_pregunta = ifelse((is.na(description_2))&(is.na(description_1))&(is.na(description)), questionId,
                                                   ifelse((is.na(description_2))&(is.na(description_1))&(!is.na(description)),paste(questionId,description_t,sep='_'),
@@ -78,7 +79,7 @@ tabla_encuestas_f  <- tabla_encuestas %>% filter(questionId %in% preguntas) %>%
 tabla_encuestas_f[tabla_encuestas_f$tipo_respuesta == 'others']
 
 numeric_possibleanswers_1 <- tabla_encuestas_f[tabla_encuestas_f$tipo_respuesta=='numeric_possibleanswers'] %>%
-                           mutate(num=1)
+                             mutate(num=1)
 numeric_possibleanswers_2 <- numeric_possibleanswers_1 %>% as.data.frame() %>%
                              mutate(num=2)
 
@@ -93,6 +94,9 @@ numeric_possibleanswers <- numeric_possibleanswers_1 %>% rbind(numeric_possiblea
 tabla_encuestas_f <- tabla_encuestas_f %>% filter(tipo_respuesta!='numeric_possibleanswers') %>% 
                      rbind(numeric_possibleanswers)
 
+#Exportamos la tabla
+write_csv(tabla_encuestas_f,'Proyectos/Otros/kerma/data/interim/tabla_encuestas_f.csv')
+
 tabla_encuesta_wide <- tabla_encuestas_f[c('userId','id_unico_pregunta','respuesta_unica')] %>% 
                        spread(key = id_unico_pregunta,value = respuesta_unica)
 
@@ -102,13 +106,14 @@ tabla_encuesta_wide <- tabla_encuestas_f[c('userId','id_unico_pregunta','respues
 # Operaciones de columnas
 # Importamos la tabla donde vienen las operaciones a realizar
 
-operaciones <- read_csv('Proyectos/Otros/kerma/data/interim/operaciones_preguntas - col_1.csv') %>%
+operaciones <- read_csv('Proyectos/Otros/kerma/data/interim/operaciones_preguntas - col_1.csv',
+                        col_types =  cols(.default = "c")) %>%
                mutate(columna_1 = ifelse(is.na(categoria_pregunta_1),pregunta_1,paste(pregunta_1,categoria_pregunta_1,sep='_')),
                       columna_2 = ifelse(!is.na(pregunta_2) & !is.na(categoria_pregunta_2),paste(pregunta_2,categoria_pregunta_2,sep='_'),
                                          ifelse(!is.na(pregunta_2) & is.na(categoria_pregunta_2),pregunta_2,NA)),
                       columna_3 = ifelse(!is.na(pregunta_3) & !is.na(categoria_pregunta_2),paste(pregunta_3,categoria_pregunta_2,sep='_'),
                                          ifelse(!is.na(pregunta_3) & is.na(categoria_pregunta_2),pregunta_3,NA)),
-                      nombre_columna_nueva = ifelse(is.na(subseccion),paste(seccion,renglon,sep='_') , paste(seccion,subseccion,renglon,sep='_'))) %>% 
+                      nombre_columna_nueva = ifelse(is.na(subseccion),paste(seccion,'0',renglon,sep='_') , paste(seccion,subseccion,renglon,sep='_'))) %>% 
   select(columna_1,columna_2,columna_3,funcion,nombre_columna_nueva)
 
 tabla_reporte <- data.frame(userId=tabla_encuesta_wide$userId)
@@ -203,6 +208,7 @@ razones <- total %>% full_join(archivo) %>% full_join(secretarias) %>% full_join
                   '7_3_4' = ingresos/total_pasantes_abogados) %>% 
            select(userId,`2_19_1`:`7_3_4`)
 
+razones_l <- razones %>% gather(key = seccion, value= valor,-userId)
 mapeo_nombres_razones <- data.frame(nombre_viejo = c('Abogados/Socios',
                                                      'Administrativo/Profesional',
                                                      'Pasantes/Socios',
