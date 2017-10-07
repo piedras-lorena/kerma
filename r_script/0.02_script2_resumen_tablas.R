@@ -27,15 +27,6 @@ submuestras <- read_csv('Proyectos/Otros/kerma/data/interim/submuestras - Hoja 1
                         userId = col_integer()
                         ))
 
-# Importamos la tabla donde vienen las tablas resumen 'diferentes'
-# diccionario_diferentes <- read_csv('Proyectos/Otros/kerma/data/interim/tablas_resumen_diferentes - Hoja 1.csv',
-#                           col_types = cols(.default = "c")) %>%
-#                       mutate(seccion_toda = ifelse(is.na(subseccion) & is.na(renglon),seccion,
-#                                              ifelse(is.na(subseccion) & !is.na(renglon), paste(seccion,'0',renglon,sep='_'),
-#                                                 ifelse(!is.na(subseccion) & is.na(renglon), paste(seccion,subseccion,'0',sep='_'),
-#                                                        paste(seccion,subseccion,renglon,sep='_')))),
-#                         seccion_subseccion = gsub("_[0-9]*$",'',seccion_toda))
-
 diccionario_diferentes <- read_csv('Proyectos/Otros/kerma/data/interim/tablas_resumen_diferentes - Hoja 1.csv',
                               col_types = cols(.default = "c")) %>%
                           mutate(seccion_solo = ifelse(is.na(subseccion) & is.na(renglon),seccion,"0"),
@@ -92,9 +83,86 @@ resumen_diferentes_r <- resumen_diferentes %>% left_join(diccionario_diferentes[
 
 # Creamos las tablas resumen para las preguntas que no tienen respuesta del despacho, son puro 'resumen'
 # Importamos la tabla de la encuesta raw
-tabla_enuestas_f <- read_csv('Proyectos/Otros/kerma/data/interim/tabla_encuestas_f.csv',col_types = cols(.default = "c"))
+tabla_encuestas_f <- read_csv('Proyectos/Otros/kerma/data/interim/tabla_encuestas_f.csv',col_types = cols(.default = "c"))
 
+# cambiamos el id unico en preguntas de seguros para que incluya el nombre (socio,abogado,etc), tabién a otras prestaciones   
 
-
+# Pegar wildcart a 340-356
 diccionario_solo_resumen <- diccionario_diferentes %>% filter(tipo_tabla %!in% lista_incluidas)
+distribucion <- diccionario_solo_resumen[diccionario_solo_resumen$tipo_tabla == 'distribucion',]
+distribucion <- distribucion %>% mutate(renglon = as.numeric(renglon)) %>% arrange(seccion,subseccion,renglon) %>%
+                group_by(seccion,subseccion,columna_1) %>% slice(1) %>% mutate(renglon = as.character(renglon))
+
+diccionario_solo_resumen <- diccionario_solo_resumen %>% filter(tipo_tabla != 'distribucion') %>% bind_rows(distribucion)
+resultado_resumen_diferentes <- create_empty_df()
+
+
+### Hacemos tabla para si_no y distribucion ###
+filtro <- c('si_no','distribucion')
+
+sub <- diccionario_solo_resumen %>% filter(tipo_tabla %in% filtro) %>%
+       mutate(seccion_subseccion = paste(seccion,subseccion,sep='_')) %>% filter(!is.na(columna_1))
+
+apply(sub,1, function(x) resumenes_diferentes_func(x['columna_1'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+resultado_col_1_resumen <- resultado_resumen_diferentes %>% as.data.frame()
+
+
+# Hacemos la columna número dos
+
+resultado_resumen_diferentes <- create_empty_df()
+
+sub_2 <- sub %>% filter(!is.na(columna_2))
+apply(sub_2,1, function(x) resumenes_diferentes_func(x['columna_2'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+resultado_col_2_resumen <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('respuesta_unica'= 'respuesta_unica_2',
+                                                                                         'valor_1' = 'valor_1_2',
+                                                                                         'valor_2' = 'valor_2_2',
+                                                                                         'N/A' = 'N/A_2'))
+
+# Hacemos la columna número tres
+
+resultado_resumen_diferentes <- create_empty_df()
+apply(sub_2,1, function(x) resumenes_diferentes_func(x['columna_3'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+resultado_col_3_resumen <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('respuesta_unica'= 'respuesta_unica_3',
+                                                                                         'valor_1' = 'valor_1_3',
+                                                                                         'valor_2' = 'valor_2_3',
+                                                                                         'N/A' = 'N/A_3'))
+
+# Hacemos la columna número cuatro
+
+resultado_resumen_diferentes <- create_empty_df()
+apply(sub_2,1, function(x) resumenes_diferentes_func(x['columna_4'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+resultado_col_4_resumen <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('respuesta_unica'= 'respuesta_unica_4',
+                                                                                         'valor_1' = 'valor_1_4',
+                                                                                         'valor_2' = 'valor_2_4',
+                                                                                         'N/A' = 'N/A_4'))
+
+# Hacemos la columna número cinco
+
+resultado_resumen_diferentes <- create_empty_df()
+apply(sub_2,1, function(x) resumenes_diferentes_func(x['columna_5'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+resultado_col_5_resumen <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('respuesta_unica'= 'respuesta_unica_5',
+                                                                                         'valor_1' = 'valor_1_5',
+                                                                                         'valor_2' = 'valor_2_5',
+                                                                                         'N/A' = 'N/A_5'))
+
+
+sub_total <- resultado_col_1_resumen %>% left_join(resultado_col_2_resumen) %>% left_join(resultado_col_3_resumen) %>%
+             left_join(resultado_col_4_resumen) %>% left_join(resultado_col_5_resumen) 
+
+# Hacemos distribucion_suma_asegurada, distribucion_anios,distribucion_edad
+filtro <- c('distribucion_suma_asegurada','distribucion_anios','distribucion_edad')
+
+distribuciones <- diccionario_solo_resumen %>% filter(tipo_tabla %in% filtro) %>% mutate(seccion_subseccion = paste(seccion,subseccion,sep='_'))
+columnas <- c('columna_1','columna_2','columna_3')
+
+
+col_1 <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% distribuciones$columna_1)
+resultado_resumen_diferentes <- create_empty_df()
+apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_2'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+distribucion_col_2 <- resultado_resumen_diferentes %>% as.data.frame()
+
+#columna 3
+resultado_resumen_diferentes <- create_empty_df()
+apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_3'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+distribucion_col_3 <- resultado_resumen_diferentes %>% as.data.frame()
 
