@@ -40,3 +40,7 @@ resumenes_diferentes_func <- function(columna_1,seccion_subseccion,renglon, tipo
   res_grupos['tipo_tabla'] <- tipo_tabla
   resultado_resumen_diferentes <<- resultado_resumen_diferentes %>% bind_rows(res_grupos)
 }
+
+convertir_vector<- function(row){
+  unlist(strsplit(row, split=";"))
+}

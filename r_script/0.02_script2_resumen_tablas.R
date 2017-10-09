@@ -7,6 +7,8 @@ library(readr)
 library(data.table)
 library(stringr)
 library(plyr)
+library(qpcR)
+options(scipen = 999)
 
 source('Proyectos/Otros/kerma/r_script/lib/utils_script2.R')
 
@@ -39,7 +41,7 @@ preguntas_submuestras <- read_csv('Proyectos/Otros/kerma/data/interim/mappeo_pre
                          mutate(seccion_subseccion = ifelse(is.na(subseccion_reporte),paste(seccion_reporte,'0',sep='_'),
                                                             paste(seccion_reporte,subseccion_reporte,sep='_')),
                                 submuestra = ifelse(is.na(submuestra),0,submuestra)) %>%
-                         select(seccion_subseccion,submuestra) %>% unique()
+                         dplyr::select(seccion_subseccion,submuestra) %>% unique()
 
 tabla_reporte <- tabla_reporte %>% left_join(preguntas_submuestras) 
 
@@ -63,31 +65,21 @@ resumen_diferentes <- tabla_reporte %>% filter((seccion_sola %in% diccionario_di
 #                                   Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T))
 # }
 
+# Generamos las tablas resumen 'normales'
 resumen_normal_r <- resumen_normal %>% dplyr::group_by(seccion) %>%
                     dplyr::summarize(Promedio = mean(valor,na.rm = T), `25%`=quantile(valor, probs=0.25,na.rm = TRUE),
                                 `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
                                 Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T))
 
 
-# Resumen diferentes -----------------------------------------------------------
+# Resumen diferentes sin respuesta -----------------------------------------------------------
 lista_incluidas <- c('promedio_h_m','si_no_cr','personal_edad_anios','personal_tarifa_edad','valor_promedio')
-diferentes_reporte <-   diccionario_diferentes %>% filter(tipo_tabla %in% lista_incluidas)
-
-resumen_diferentes_r <- resumen_diferentes %>% left_join(diccionario_diferentes[c('seccion_solo','tipo_tabla')],by = c('seccion_sola'='seccion_solo')) %>%
-                   left_join(diccionario_diferentes[c('seccion_subseccion','tipo_tabla')],by = 'seccion_subseccion') %>%
-                   left_join(diccionario_diferentes[c('seccion_entera','tipo_tabla')],by = c('seccion'='seccion_entera')) %>%
-                   mutate(tipo_tabla_fin = ifelse(!is.na(tipo_tabla.y),tipo_tabla.y,
-                                                  ifelse(!is.na(tipo_tabla.x),tipo_tabla.x,tipo_tabla))) %>% select(-tipo_tabla,-tipo_tabla.x,-tipo_tabla.y) %>%
-                   unique()
 
 
 # Creamos las tablas resumen para las preguntas que no tienen respuesta del despacho, son puro 'resumen'
 # Importamos la tabla de la encuesta raw
 tabla_encuestas_f <- read_csv('Proyectos/Otros/kerma/data/interim/tabla_encuestas_f.csv',col_types = cols(.default = "c"))
 
-# cambiamos el id unico en preguntas de seguros para que incluya el nombre (socio,abogado,etc), tabién a otras prestaciones   
-
-# Pegar wildcart a 340-356
 diccionario_solo_resumen <- diccionario_diferentes %>% filter(tipo_tabla %!in% lista_incluidas)
 distribucion <- diccionario_solo_resumen[diccionario_solo_resumen$tipo_tabla == 'distribucion',]
 distribucion <- distribucion %>% mutate(renglon = as.numeric(renglon)) %>% arrange(seccion,subseccion,renglon) %>%
@@ -153,16 +145,100 @@ sub_total <- resultado_col_1_resumen %>% left_join(resultado_col_2_resumen) %>% 
 filtro <- c('distribucion_suma_asegurada','distribucion_anios','distribucion_edad')
 
 distribuciones <- diccionario_solo_resumen %>% filter(tipo_tabla %in% filtro) %>% mutate(seccion_subseccion = paste(seccion,subseccion,sep='_'))
-columnas <- c('columna_1','columna_2','columna_3')
 
-
-col_1 <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% distribuciones$columna_1)
 resultado_resumen_diferentes <- create_empty_df()
-apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_2'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
-distribucion_col_2 <- resultado_resumen_diferentes %>% as.data.frame()
+apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_1'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+distribucion_col_1 <- resultado_resumen_diferentes %>% as.data.frame()  %>% rename(c('valor_1' = 'valor_1_1',
+                                                                                     'valor_2' = 'valor_2_1',
+                                                                                     'N/A' = 'N/A_1'))
 
 #columna 3
 resultado_resumen_diferentes <- create_empty_df()
 apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_3'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
-distribucion_col_3 <- resultado_resumen_diferentes %>% as.data.frame()
+distribucion_col_3 <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('valor_1' = 'valor_1_3',
+                                                                                    'valor_2' = 'valor_2_3',
+                                                                                    'N/A' = 'N/A_3'))
 
+
+#columna 4
+resultado_resumen_diferentes <- create_empty_df()
+apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_4'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+distribucion_col_4 <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('valor_1' = 'valor_1_4',
+                                                                                    'valor_2' = 'valor_2_4',
+                                                                                    'N/A' = 'N/A_4'))
+
+
+# Calculamos la suma asegurada, edad y años promedio
+# columna 2
+
+filtro <- pull(distribuciones[! is.na (distribuciones$columna_2),],'columna_2')
+tabla_encuestas_f$valueNumeric <- sapply(tabla_encuestas_f$valueNumeric,as.numeric)
+
+distribucion_col_2 <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% filtro) %>% group_by(id_unico_pregunta) %>%
+                      dplyr::summarize(Promedio = mean(valueNumeric,na.rm = T)) %>% 
+                      left_join(distribuciones[c('seccion','subseccion','renglon','columna_2')],by = c('id_unico_pregunta'='columna_2')) %>%
+                      mutate(seccion = paste(seccion,subseccion,renglon,sep = '_')) %>% dplyr::select(-subseccion,-renglon)
+
+distribucion_total <- distribucion_col_1 %>% left_join(distribucion_col_2 %>% dplyr::select(-id_unico_pregunta)) %>% left_join(distribucion_col_3) %>%
+                      left_join(distribucion_col_4)
+  
+mapeo_nombres_diferentes <- distribucion_col_2 %>% dplyr::select(seccion,id_unico_pregunta) %>%
+                            mutate(respondido = '1',id_unico_pregunta = gsub('^[0-9]+_','',id_unico_pregunta)) %>% 
+                            rename(c('id_unico_pregunta' = 'nombre_viejo','seccion'='nombre_nuevo'))
+
+
+# Importamos el archivo con el nombre de los renglones para pegarle el nombre de los renglones de las tablas diferentes
+mapeo_nombres <- read_csv('Proyectos/Otros/kerma/data/interim/mapeo_nombres.csv',
+                          col_types = cols(.default = "c")) %>% bind_rows(mapeo_nombres_diferentes)
+
+
+# CALCULAMOS PROMEDIO_SR 
+promedio_sr <- pull(diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'promedio_sr',],'columna_1')
+
+resumen_promedio_sr <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% promedio_sr) %>% group_by(id_unico_pregunta) %>%
+                       dplyr::summarize(Promedio = mean(valueNumeric,na.rm = T))
+
+# CALCULAMOS DISTRIBUCION CATEGORIAS
+temp <- tabla_encuestas_f %>% filter(id_unico_pregunta == 'distribucion_categorias') 
+resumen_distribucion_cat_v <- convertir_vector(temp$possibleAnswers) %>% as.data.table() %>% rename(c('.'='respuesta_unica')) 
+
+total <- length(tabla_encuestas_f$userId %>% unique())
+
+resumen_distribucion_cat <- diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'distribucion_categorias','seccion_entera'] %>%
+                            qpcR:::cbind.na(resumen_distribucion_cat_v %>% group_by(respuesta_unica) %>%
+                                      dplyr::summarize(Porcentaje = n()) %>%
+                                      mutate(Porcentaje = Porcentaje/total))
+
+
+# NORMAL SR
+normal_sr <- pull(diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'normal_sr',],'columna_1')
+
+
+
+# Resumen diferentes con respuesta ----------------------------------------
+
+resumen_diferentes_r <- resumen_diferentes %>% left_join(diccionario_diferentes[c('seccion_solo','tipo_tabla')],by = c('seccion_sola'='seccion_solo')) %>%
+                        left_join(diccionario_diferentes[c('seccion_subseccion','tipo_tabla')],by = 'seccion_subseccion') %>%
+                        left_join(diccionario_diferentes[c('seccion_entera','tipo_tabla')],by = c('seccion'='seccion_entera')) %>%
+                        mutate(tipo_tabla_fin = ifelse(!is.na(tipo_tabla.y),tipo_tabla.y,
+                                                  ifelse(!is.na(tipo_tabla.x),tipo_tabla.x,tipo_tabla))) %>% dplyr::select(-tipo_tabla,-tipo_tabla.x,-tipo_tabla.y) %>%
+                        unique() %>% rename(c('tipo_tabla_fin'='tipo_tabla'))
+
+
+#Resumen promedio hm
+resumen_promedio_hm <- resumen_diferentes_r %>% filter(tipo_tabla == 'promedio_h_m') 
+resumen_promedio_hm$valor <- sapply(resumen_promedio_hm$valor,as.numeric)
+
+resumen_promedio_hm <- resumen_promedio_hm  %>% dplyr::group_by(seccion) %>%
+                        dplyr::summarize(Promedio = mean(valor,na.rm = T),`25%`=quantile(valor, probs=0.25,na.rm = TRUE),
+                        `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
+                        Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T))
+                        
+
+
+
+
+resumen_normal_r <- resumen_normal %>% dplyr::group_by(seccion) %>%
+  dplyr::summarize(Promedio = mean(valor,na.rm = T), `25%`=quantile(valor, probs=0.25,na.rm = TRUE),
+                   `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
+                   Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T))
