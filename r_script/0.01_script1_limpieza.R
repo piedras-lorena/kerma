@@ -73,7 +73,7 @@ tabla_encuestas_f  <- tabla_encuestas %>% filter(questionId %in% preguntas) %>%
                                                       ifelse(tipo_respuesta=='possibleanswers',possibleAnswers,
                                                              ifelse(tipo_respuesta=='stringvalue',stringValue,
                                                                     ifelse(tipo_respuesta=='valuedate',valueDate,NA))))) %>%
-                     select(-description_1_t,-description_2_t) %>% as.data.table()
+                     dplyr::select(-description_1_t,-description_2_t) %>% as.data.table()
 
 # Checar qué aparecen en others
 tabla_encuestas_f[tabla_encuestas_f$tipo_respuesta == 'others']
@@ -88,17 +88,17 @@ numeric_possibleanswers <- numeric_possibleanswers_1 %>% rbind(numeric_possiblea
                                   tipo_respuesta = ifelse(num==1,'numeric','possibleanswers'),
                                   id_unico_pregunta = ifelse(num==1,paste(id_unico_pregunta,'numeric',sep='_'),
                                                              paste(id_unico_pregunta,'possibleanswers',sep='_'))) %>%
-                           select(-num)
+                           dplyr::select(-num)
 
 
 tabla_encuestas_f <- tabla_encuestas_f %>% filter(tipo_respuesta!='numeric_possibleanswers') %>% 
-                     rbind(numeric_possibleanswers)
+                     rbind(numeric_possibleanswers) %>% as.data.frame()
 
 #Exportamos la tabla
 write_csv(tabla_encuestas_f,'Proyectos/Otros/kerma/data/interim/tabla_encuestas_f.csv')
 
 tabla_encuesta_wide <- tabla_encuestas_f[c('userId','id_unico_pregunta','respuesta_unica')] %>% 
-                       spread(key = id_unico_pregunta,value = respuesta_unica)
+                       tidyr::spread(key = id_unico_pregunta,value = respuesta_unica)
 
 
 # Tabla reporte -----------------------------------------------------------
@@ -114,7 +114,7 @@ operaciones <- read_csv('Proyectos/Otros/kerma/data/interim/operaciones_pregunta
                       columna_3 = ifelse(!is.na(pregunta_3) & !is.na(categoria_pregunta_2),paste(pregunta_3,categoria_pregunta_2,sep='_'),
                                          ifelse(!is.na(pregunta_3) & is.na(categoria_pregunta_2),pregunta_3,NA)),
                       nombre_columna_nueva = ifelse(is.na(subseccion),paste(seccion,'0',renglon,sep='_') , paste(seccion,subseccion,renglon,sep='_'))) %>% 
-  select(columna_1,columna_2,columna_3,funcion,nombre_columna_nueva)
+  dplyr::select(columna_1,columna_2,columna_3,funcion,nombre_columna_nueva)
 
 tabla_reporte <- data.frame(userId=tabla_encuesta_wide$userId)
 mapeo_nombres <- data.frame(nombre_viejo = character(0),
@@ -127,14 +127,14 @@ apply(operaciones,1,function(x) operaciones_col(x['columna_1'],x['columna_2'],x[
 tabla_reporte_l <- tabla_reporte %>% gather(key = seccion, value = valor,-userId)
 
 # Agarramos aleatoriamente 2 de cada operación para checar que estén bien hechas
-chequeo <- mapeo_nombres %>% left_join(operaciones %>% select(nombre_columna_nueva,funcion),by = c('nombre_nuevo'='nombre_columna_nueva'))
+chequeo <- mapeo_nombres %>% left_join(operaciones %>% dplyr::select(nombre_columna_nueva,funcion),by = c('nombre_nuevo'='nombre_columna_nueva'))
 table(chequeo$respondido)
 
 chequeo_2 <- chequeo %>% filter(respondido == 1) %>% group_by(funcion) %>% sample_n(2)
 
 reporte_chequeo <- tabla_reporte_l %>% filter(seccion %in% chequeo_2$nombre_nuevo)
 
-merge_chequeo <- tabla_reporte_l %>% left_join(operaciones %>% select(nombre_columna_nueva,funcion),by = c('seccion'='nombre_columna_nueva'))
+merge_chequeo <- tabla_reporte_l %>% left_join(operaciones %>% dplyr::select(nombre_columna_nueva,funcion),by = c('seccion'='nombre_columna_nueva'))
 
 # COL_2 y # COL_3
 # Las secciones 2.1,2.2,2.3 tienen tres columnas
@@ -158,38 +158,38 @@ tabla_reporte_todas <- tabla_reporte_l %>% left_join(tabla_reporte_col_1_l) %>% 
 #TABLA ESPECIAL 2.19
 tabla_encuestas_f['valueNumeric'] <- sapply(tabla_encuestas_f$valueNumeric,as.numeric)
 abogados <- tabla_encuestas_f %>% filter(description == 'Abogado' & description_1 == 'Tarifa' & questionId %in% c(113,114)) %>%
-            group_by(userId) %>% summarise(total_abogados = sum(valueNumeric,na.rm=T))
+            group_by(userId) %>% dplyr::summarise(total_abogados = sum(valueNumeric,na.rm=T))
 
 socios <- tabla_encuestas_f %>% filter(description == 'Socio' & questionId %in% c(96,97)) %>%
-          group_by(userId) %>% summarise(total_socios = sum(valueNumeric,na.rm=T))
+          group_by(userId) %>% dplyr::summarise(total_socios = sum(valueNumeric,na.rm=T))
 
 socios_propietarios <- tabla_encuestas_f %>% filter(groupHumanCapital == 4 & questionId %in% c(96,97)) %>%
-                       group_by(userId) %>% summarise(total_socios_prop = sum(valueNumeric,na.rm=T))
+                       group_by(userId) %>% dplyr::summarise(total_socios_prop = sum(valueNumeric,na.rm=T))
 cat_administrativo <- c('Gerente de Administración','Staff de Administración','Apoyo de Administración')
 rsp_administrativo <- c(243,244,264,265,287,288)
 administrativo <- tabla_encuestas_f %>% filter(description %in% cat_administrativo & questionId %in% rsp_administrativo) %>%
-                  group_by(userId) %>% summarise(total_admin = sum(valueNumeric,na.rm=T))
+                  group_by(userId) %>% dplyr::summarise(total_admin = sum(valueNumeric,na.rm=T))
 
 rsp_profesional <- c(96,97,113,114,192,193)
 profesional <- tabla_encuestas_f %>% filter(questionId %in% rsp_profesional) %>%
-               group_by(userId) %>% summarise(total_profesional = sum(valueNumeric,na.rm=T))
+               group_by(userId) %>% dplyr::summarise(total_profesional = sum(valueNumeric,na.rm=T))
 
 pasantes <- tabla_encuestas_f %>% filter(questionId %in% c(192,193)) %>%
-            group_by(userId) %>% summarise(total_pasantes = sum(valueNumeric,na.rm=T))
+            group_by(userId) %>% dplyr::summarise(total_pasantes = sum(valueNumeric,na.rm=T))
 
 group_hc <- c(23,34,35,36)
 secretarias <- tabla_encuestas_f %>% filter(groupHumanCapital %in% group_hc & questionId %in% c(264,265)) %>%
-               group_by(userId) %>% summarise(total_secretarias = sum(valueNumeric,na.rm=T))
+               group_by(userId) %>% dplyr::summarise(total_secretarias = sum(valueNumeric,na.rm=T))
 
 archivo <- tabla_encuestas_f %>% filter(groupHumanCapital == 24 & questionId %in% c(287,288)) %>%
-           group_by(userId) %>% summarise(total_archivo = sum(valueNumeric,na.rm=T))
+           group_by(userId) %>% dplyr::summarise(total_archivo = sum(valueNumeric,na.rm=T))
 
 rsp_total <- c(96,97,113,114,192,193,243,244,264,265,287,288,164,165)
 total <- tabla_encuestas_f %>% filter(questionId %in% rsp_total) %>%
-         group_by(userId) %>% summarise(total = sum(valueNumeric,na.rm=T))
+         group_by(userId) %>% dplyr::summarise(total = sum(valueNumeric,na.rm=T))
 
 ingresos <- tabla_encuestas_f %>% filter(questionId == 12) %>%
-           group_by(userId) %>% summarise(ingresos = sum(valueNumeric,na.rm=T))
+           group_by(userId) %>% dplyr::summarise(ingresos = sum(valueNumeric,na.rm=T))
 
 razones <- total %>% full_join(archivo) %>% full_join(secretarias) %>% full_join(pasantes) %>% full_join(profesional) %>% full_join(administrativo) %>% 
            full_join(socios) %>% full_join(abogados) %>% full_join(socios_propietarios) %>% full_join(ingresos) %>%
@@ -206,7 +206,7 @@ razones <- total %>% full_join(archivo) %>% full_join(secretarias) %>% full_join
                   '7_3_2' = ingresos/total_socios,
                   '7_3_3' = ingresos/total_abogados,
                   '7_3_4' = ingresos/total_pasantes_abogados) %>% 
-           select(userId,`2_19_1`:`7_3_4`)
+           dplyr::select(userId,`2_19_1`:`7_3_4`)
 
 razones_l <- razones %>% gather(key = seccion, value= valor,-userId)
 mapeo_nombres_razones <- data.frame(nombre_viejo = c('Abogados/Socios',

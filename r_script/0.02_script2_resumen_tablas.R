@@ -199,7 +199,9 @@ resumen_promedio_sr <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% prome
                        dplyr::summarize(Promedio = mean(valueNumeric,na.rm = T))
 
 # CALCULAMOS DISTRIBUCION CATEGORIAS
-temp <- tabla_encuestas_f %>% filter(id_unico_pregunta == 'distribucion_categorias') 
+distrib_cat <- pull(diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'distribucion_categorias',],'columna_1')
+
+temp <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% distrib_cat) 
 resumen_distribucion_cat_v <- convertir_vector(temp$possibleAnswers) %>% as.data.table() %>% rename(c('.'='respuesta_unica')) 
 
 total <- length(tabla_encuestas_f$userId %>% unique())
@@ -212,8 +214,15 @@ resumen_distribucion_cat <- diccionario_diferentes[diccionario_diferentes$tipo_t
 
 # NORMAL SR
 normal_sr <- pull(diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'normal_sr',],'columna_1')
+resumen_normal_sr <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% normal_sr) %>%
+                     dplyr::select(id_unico_pregunta,valueNumeric) %>% 
+                     left_join(diccionario_diferentes %>% dplyr::select(seccion_entera,columna_1),by = c('id_unico_pregunta'='columna_1')) %>%
+                     dplyr::select(-id_unico_pregunta) %>% rename(c('seccion_entera'='seccion'))
 
-
+resumen_normal_sr_r <-  resumen_normal_sr %>% dplyr::group_by(seccion) %>%
+                        dplyr::summarize(Promedio = mean(valueNumeric,na.rm = T), `25%`=quantile(valueNumeric, probs=0.25,na.rm = TRUE),
+                       `50%`=quantile(valueNumeric, probs=0.5,na.rm = T),`75%`=quantile(valueNumeric, probs=0.75,na.rm = T),
+                        Alto = max(valueNumeric,na.rm = T),Bajo = min(valueNumeric,na.rm = T))
 
 # Resumen diferentes con respuesta ----------------------------------------
 
@@ -230,15 +239,47 @@ resumen_promedio_hm <- resumen_diferentes_r %>% filter(tipo_tabla == 'promedio_h
 resumen_promedio_hm$valor <- sapply(resumen_promedio_hm$valor,as.numeric)
 
 resumen_promedio_hm <- resumen_promedio_hm  %>% dplyr::group_by(seccion) %>%
-                        dplyr::summarize(Promedio = mean(valor,na.rm = T),`25%`=quantile(valor, probs=0.25,na.rm = TRUE),
-                        `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
-                        Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T))
+                        dplyr::summarize(Promedio = mean(valor,na.rm = T),`H%` = mean(porcent_hombres,na.rm = T),
+                                         `M%` = mean(porcent_mujeres,na.rm = T),`25%`=quantile(valor, probs=0.25,na.rm = TRUE),
+                                         `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
+                                          Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T))
                         
+#Resumen si no con respuesta
+si_no_cr <- resumen_diferentes_r %>% filter(tipo_tabla == 'si_no_cr')
+
+total <- length(si_no_cr$userId %>% unique())
+si_no_cr_r <- si_no_cr %>% dplyr::group_by(seccion,valor) %>%
+              dplyr::summarize(res = length(userId)/total) %>%
+              spread(key = valor, value = res) %>%
+              rename(c('Si'='valor_1','No'='valor_2'))
 
 
+#Resumen personal edad años
+personal_edad_anios <- resumen_diferentes_r %>% filter(tipo_tabla == 'personal_edad_anios') 
 
+personal_edad_anios['valor'] <- sapply(personal_edad_anios$valor,as.numeric)
+personal_edad_anios_r <- personal_edad_anios %>% dplyr::group_by(seccion) %>%
+                         dplyr::summarize(Promedio = mean(valor,na.rm = T), `25%`=quantile(valor, probs=0.25,na.rm = TRUE),
+                                        `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
+                                         Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T)) %>% left_join(mapeo_nombres %>%
+                         dplyr::select(-respondido), by = c('seccion' = 'nombre_nuevo'))
 
-resumen_normal_r <- resumen_normal %>% dplyr::group_by(seccion) %>%
-  dplyr::summarize(Promedio = mean(valor,na.rm = T), `25%`=quantile(valor, probs=0.25,na.rm = TRUE),
-                   `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
-                   Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T))
+# Encontramos las secciones donde viene edad (2_17 y 21_18)
+edad <- resumen_normal_r %>% filter(grepl('^2_16|^2_17|^2_18',seccion)) %>% 
+        left_join(mapeo_nombres, by = c('seccion' = 'nombre_nuevo')) %>% dplyr::select(nombre_viejo,Promedio) %>%
+        rename(c('Promedio' = 'Edad'))
+
+# Encontramos las secciones donde viene personal total  (2_1,2_2,2_3)
+
+personal <- resumen_promedio_hm %>% filter(grepl('^2_1|^2_2|^2_3',seccion)) %>% 
+            left_join(mapeo_nombres, by = c('seccion' = 'nombre_nuevo')) %>% dplyr::select(nombre_viejo,Promedio) %>%
+            rename(c('Promedio' = 'Personal total'))
+
+# Encontramos las secciones donde viene personal total  (2_7,2_8,2_9)
+anios <- resumen_normal_r %>% filter(grepl('^2_7|^2_8|^2_9',seccion)) %>% 
+         left_join(mapeo_nombres, by = c('seccion' = 'nombre_nuevo')) %>% dplyr::select(nombre_viejo,Promedio) %>%
+         rename(c('Promedio' = 'Años de Exp.'))
+
+#Pegamos todo junto
+personal_edad_anios_r <- personal_edad_anios_r %>% left_join(personal) %>% left_join(edad) %>% left_join(anios)
+## PENDIENTE: CHECAR MAPPEO NOMBRES Y ARREGRLAR QUE CUANDO NO HAYA CATEGORIA PREGUNTA 1 LE ASIGNE CATEGORIA PREGUNTA 2 

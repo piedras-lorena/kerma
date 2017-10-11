@@ -14,12 +14,12 @@ convertir_vector<- function(row){
 
 importar_encuesta<-function(path_df){
   df<-read_csv(path_df,col_types=cols(valueNumeric=col_double())) %>% 
-    select(-matches('^X[0-9]+'))
+    dplyr::select(-matches('^X[0-9]+'))
 }
 
 operaciones_col <- function(columna_1,columna_2,columna_3,funcion,nombre_columna_nueva){
   i <- nrow(mapeo_nombres)+1
-  mapeo_nombres[i,'nombre_viejo'] <<- gsub('^[0-9]+_','',columna_1)
+  mapeo_nombres[i,'nombre_viejo'] <<- ifelse(funcion == 'sueldo_base',gsub('^[0-9]+_','',columna_2),gsub('^[0-9]+_','',columna_1))
   mapeo_nombres[i,'nombre_nuevo'] <<- nombre_columna_nueva
   error_c1<-try(tabla_encuesta_wide[columna_1],TRUE)
   error_c2<-try(tabla_encuesta_wide[columna_2],TRUE)
