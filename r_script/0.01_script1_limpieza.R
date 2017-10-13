@@ -7,7 +7,7 @@ library(tidyr)
 library(readr)
 library(data.table)
 library(stringr)
-
+options(scipen = 999)
 source('Proyectos/Otros/kerma/r_script/lib/utils_script1.R')
 
 

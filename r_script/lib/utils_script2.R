@@ -3,7 +3,8 @@
 # Función para crear resúmenes de tablas diferentes
 
 frecuencia <- function(x,total_res){
-  length(x %>% unique())/total_res
+  #length(x %>% unique())/total_res
+  length(x)/total_res
 }
 
 create_empty_df <- function(){
@@ -22,19 +23,21 @@ resumenes_diferentes_func <- function(columna_1,seccion_subseccion,renglon, tipo
     
   } else {
     if(tipo_tabla == 'distribucion'){
-      total_res <- length(tabla['respuesta_unica'] %>% unique())
+      total_res <- length(tabla$userId %>% unique())
+      #total_res <- length(tabla['respuesta_unica'] %>% unique())
       res_grupos <- tabla %>% group_by(respuesta_unica) %>% 
                     dplyr::summarize(valor_1 = frecuencia(userId,total_res))
       id_row <- seq(renglon,length.out=nrow(res_grupos))
       res_grupos['row'] <- id_row
-      res_grupos <- res_grupos %>% mutate(seccion = paste(seccion_subseccion,row,sep = '_')) %>% select(-row)
+      res_grupos <- res_grupos %>% mutate(seccion = paste(seccion_subseccion,row,sep = '_')) %>% dplyr::select(-row)
       
     } else{ # si no
-      total_res <- length(tabla['respuesta_unica'] %>% unique())
+      total_res <- length(tabla$userId %>% unique())
+      #total_res <- length(tabla['respuesta_unica'] %>% unique())
       res_grupos <- tabla %>% group_by(respuesta_unica) %>% 
-        dplyr::summarize(valor_1 = frecuencia(userId,total_res)) %>%
-        spread(respuesta_unica,valor_1)  %>% mutate(seccion = paste(seccion_subseccion,renglon,sep = '_')) %>%
-        rename(c('Si'='valor_1','No'='valor_2')) %>% mutate(respuesta_unica = NA)
+                    dplyr::summarize(valor_1 = frecuencia(userId,total_res)) %>%
+                    spread(respuesta_unica,valor_1)  %>% mutate(seccion = paste(seccion_subseccion,renglon,sep = '_')) %>%
+                    rename(c('Si'='valor_1','No'='valor_2')) %>% mutate(respuesta_unica = NA)
     }
   }
   res_grupos['tipo_tabla'] <- tipo_tabla
