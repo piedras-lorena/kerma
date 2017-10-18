@@ -196,7 +196,9 @@ mapeo_nombres <- read_csv('Proyectos/Otros/kerma/data/interim/mapeo_nombres.csv'
 promedio_sr <- pull(diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'promedio_sr',],'columna_1')
 
 resumen_promedio_sr <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% promedio_sr) %>% group_by(id_unico_pregunta) %>%
-                       dplyr::summarize(Promedio = mean(valueNumeric,na.rm = T))
+                       dplyr::summarize(Promedio = mean(valueNumeric,na.rm = T)) %>% left_join(diccionario_diferentes[c('seccion','subseccion','renglon','columna_1')],
+                                                                                                                      by = c('id_unico_pregunta' = 'columna_1')) %>%
+                       mutate(seccion = paste(seccion,subseccion,renglon,sep = '_')) %>% dplyr::select(-subseccion,-renglon,-id_unico_pregunta)
 
 # CALCULAMOS DISTRIBUCION CATEGORIAS
 distrib_cat <- pull(diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'distribucion_categorias',],'columna_1')
@@ -334,3 +336,6 @@ valor_promedio_r <- valor_promedio %>%
 # Pegamos todas las tablas en una
 tabla_final <- rbindlist(list(resumen_normal_r,sub_total,distribucion_total,resumen_promedio_sr,resumen_distribucion_cat,resumen_normal_sr_r,resumen_promedio_hm,si_no_cr_r,
                personal_edad_anios_r,personal_tarifa_edad_r,valor_promedio_r),fill = T)
+
+write_csv(mapeo_nombres , 'Proyectos/Otros/kerma/data/interim/mappeo_nombres_resumen_reporte.csv')
+write_csv(tabla_final , 'Proyectos/Otros/kerma/data/interim/tabla_resumen_final.csv')

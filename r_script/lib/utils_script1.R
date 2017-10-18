@@ -13,7 +13,7 @@ convertir_vector<- function(row){
 }
 
 importar_encuesta<-function(path_df){
-  df<-read_csv(path_df,col_types=cols(valueNumeric=col_double())) %>% 
+  df<-read_csv(path_df,col_types=cols(.default = "c")) %>% 
     dplyr::select(-matches('^X[0-9]+'))
 }
 
