@@ -43,19 +43,22 @@ operaciones_col <- function(columna_1,columna_2,columna_3,funcion,nombre_columna
         
       } else{
         tabla_reporte[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) as.numeric(x[columna_2]) * (12 + as.numeric(x[columna_1])/30))
-        
       }
     }
-  } else if(funcion == 'crecimiento'){
+  } else if(funcion == 'crecimiento' | funcion == 'rotacion'){
     if(inherits(error_c1,'try-error')==TRUE | inherits(error_c2,'try-error')==TRUE | inherits(error_c3,'try-error')==TRUE){
       tabla_reporte[nombre_columna_nueva] <<- NA
       mapeo_nombres[i,'respondido'] <<- 0
       
     } else{
-      mapeo_nombres[i,'respondido'] <<- 1
       tabla_encuesta_wide[,c(columna_1,columna_2,columna_3)] <<- sapply(tabla_encuesta_wide[,c(columna_1,columna_2,columna_3)],
                                                                         as.numeric)
+      if(funcion == 'crecimiento'){
+      mapeo_nombres[i,'respondido'] <<- 1
       tabla_reporte[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) (as.numeric(x[columna_1]) - as.numeric(x[columna_2]) + as.numeric(x[columna_3]))/as.numeric(x[columna_1])-1)
+      } else{
+      tabla_reporte[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) as.numeric(x[columna_1]) / (2 * as.numeric(x[columna_1]) - as.numeric(x[columna_2]) + as.numeric(x[columna_3])))  
+      }
     } 
   } else{
     if(inherits(error_c1,'try-error')==TRUE){

@@ -182,14 +182,18 @@ distribucion_col_2 <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% filtro
 distribucion_total <- distribucion_col_1 %>% left_join(distribucion_col_2 %>% dplyr::select(-id_unico_pregunta)) %>% left_join(distribucion_col_3) %>%
                       left_join(distribucion_col_4)
   
-mapeo_nombres_diferentes <- distribucion_col_2 %>% dplyr::select(seccion,id_unico_pregunta) %>%
+mapeo_nombres_diferentes_1 <- distribucion_col_2 %>% dplyr::select(seccion,id_unico_pregunta) %>%
                             mutate(respondido = '1',id_unico_pregunta = gsub('^[0-9]+_','',id_unico_pregunta)) %>% 
                             rename(c('id_unico_pregunta' = 'nombre_viejo','seccion'='nombre_nuevo'))
 
-
+mapeo_nombres_diferentes_2 <- diccionario_diferentes %>% filter(seccion == '6' & subseccion == '3') %>%
+                              mutate(respondido = '1',nombre_viejo = gsub('^[0-9]+_','',columna_1)) %>% rename(
+                                c('seccion_entera' = 'nombre_nuevo')) %>%
+                              dplyr::select(nombre_nuevo,nombre_viejo,respondido)
 # Importamos el archivo con el nombre de los renglones para pegarle el nombre de los renglones de las tablas diferentes
 mapeo_nombres <- read_csv('Proyectos/Otros/kerma/data/interim/mapeo_nombres.csv',
-                          col_types = cols(.default = "c")) %>% bind_rows(mapeo_nombres_diferentes)
+                          col_types = cols(.default = "c")) %>% bind_rows(mapeo_nombres_diferentes_1) %>%
+                          bind_rows(mapeo_nombres_diferentes_2)
 
 
 # CALCULAMOS PROMEDIO_SR 
@@ -225,6 +229,36 @@ resumen_normal_sr_r <-  resumen_normal_sr %>% dplyr::group_by(seccion) %>%
                         dplyr::summarize(Promedio = mean(valueNumeric,na.rm = T), `25%`=quantile(valueNumeric, probs=0.25,na.rm = TRUE),
                        `50%`=quantile(valueNumeric, probs=0.5,na.rm = T),`75%`=quantile(valueNumeric, probs=0.75,na.rm = T),
                         Alto = max(valueNumeric,na.rm = T),Bajo = min(valueNumeric,na.rm = T))
+
+# DISTRIBUCION FECHA
+filtro_distribucion_fecha <- pull(diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'distribucion_fecha',],'columna_1') %>% unique()
+
+meses <- data.frame(valueDate = c(1:12), mes = c('enero','febrero','marzo','abril','mayo','junio',
+                                                'julio','agosto','septiembre','octubre','noviembre','diciembre'))
+distribucion_fecha <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% filtro_distribucion_fecha) %>%
+                      mutate(valueDate = month(as.Date(valueDate))) %>% left_join(meses)
+total_res <- distribucion_fecha %>% group_by(questionId) %>%
+             dplyr::summarise(total = n())
+distribucion_fecha_f <- distribucion_fecha %>%  group_by(questionId,mes,valueDate) %>%
+                        dplyr::summarise(count = n()) %>% left_join(total_res) %>% 
+                        mutate(valor_1 = count/total) %>% rename(c('mes'='respuesta_unica')) %>% arrange(questionId,valueDate) %>%
+                        dplyr::select(respuesta_unica,valor_1)
+distribucion_fecha_f <-distribucion_fecha_f %>% mutate(renglon = seq(1,nrow(distribucion_fecha_f)),
+                                                       seccion = paste(4,1,renglon,sep = '_')) %>%
+                       dplyr::select(-renglon)
+# DISTRIBUCION FECHA 132
+distribucion_fecha_132 <- tabla_encuestas_f %>% filter(questionId == 132) %>%
+                          mutate(valueDate = month(as.Date(valueDate))) %>% left_join(meses)
+
+distribucion_fecha_132_f <- distribucion_fecha_132 %>%  group_by(mes,valueDate) %>%
+                            dplyr::summarise(count = n()) %>% mutate(valor_1 = count/sum(count)) %>% 
+                            rename(c('mes'='respuesta_unica')) %>% arrange(valueDate) %>%
+                            dplyr::select(respuesta_unica,valor_1)
+distribucion_fecha_132_f <-distribucion_fecha_132_f %>% mutate(renglon = seq(1,nrow(distribucion_fecha_132_f)),
+                                                       seccion = paste(3,'15.3',renglon,sep = '_')) %>%
+                                                       dplyr::select(-renglon)
+
+distribucion_fecha_todas <- distribucion_fecha_f %>% bind_rows(distribucion_fecha_132_f)
 
 # Resumen diferentes con respuesta ----------------------------------------
 
@@ -335,7 +369,7 @@ valor_promedio_r <- valor_promedio %>%
 
 # Pegamos todas las tablas en una
 tabla_final <- rbindlist(list(resumen_normal_r,sub_total,distribucion_total,resumen_promedio_sr,resumen_distribucion_cat,resumen_normal_sr_r,resumen_promedio_hm,si_no_cr_r,
-               personal_edad_anios_r,personal_tarifa_edad_r,valor_promedio_r),fill = T)
+               personal_edad_anios_r,personal_tarifa_edad_r,valor_promedio_r,distribucion_fecha_todas),fill = T)
 
 write_csv(mapeo_nombres , 'Proyectos/Otros/kerma/data/interim/mappeo_nombres_resumen_reporte.csv')
 write_csv(tabla_final , 'Proyectos/Otros/kerma/data/interim/tabla_resumen_final.csv')
