@@ -1,3 +1,11 @@
+
+cambiar_porcent<- function(x){
+  if(is.na(x)){
+    valor <- x
+  } else valor <- percent(x)
+  return(valor)
+}
+
 crear_tabla_reporte <- function(id_despacho){
   id_despacho <- as.character(id_despacho)
 
@@ -20,12 +28,13 @@ crear_tabla_reporte <- function(id_despacho){
   tabla_reporte <- tabla_reporte %>% mutate(cuantil = ifelse(as.numeric(valor) <= as.numeric(`25%`), '<25%',
                                                            ifelse(as.numeric(valor) > as.numeric(`25%`) & as.numeric(valor) <= as.numeric(`50%`),'25%',
                                                                   ifelse(as.numeric(valor) > as.numeric(`50%`) & as.numeric(valor) <= as.numeric(`75%`),'50%',
-                                                                         ifelse(is.na(`25%`),NA,'75%')))),
-                                          `VS PROM` = ifelse(as.numeric(valor) < as.numeric(Promedio),'Abajo','Arriba o igual'))
-  filas_numeric = c('Promedio','porcent_hombres','porcent_mujeres','25%','50%','75%','Alto','Bajo','Porcentaje','H%','M%','valor_1','valor_2',
+                                                                         ifelse(is.na(`25%`),NA,'>75%')))),
+                                          `VS PROM` = ifelse(as.numeric(valor) < as.numeric(Promedio),'Abajo','Arriba'))
+  filas_numeric = c('Promedio','25%','50%','75%','Alto','Bajo','Porcentaje','porcent_hombres','porcent_mujeres',#'H%','M%','valor_1','valor_2',
                     'Personal total','Edad','Años de exp.','Tarifa')
   tabla_reporte[,filas_numeric] <- sapply(tabla_reporte[,filas_numeric], function(x) round(as.numeric(x),digits = 2)) 
-  
+  filtro_percent <- c('porcent_hombres','porcent_mujeres')
+  tabla_reporte[filtro_percent] <- apply(tabla_reporte[filtro_percent],2, function(x) mapply(cambiar_porcent,x))
   return(tabla_reporte)
 }
 

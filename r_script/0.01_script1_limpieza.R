@@ -49,13 +49,15 @@ tabla_encuestas['valueNumeric'] <- sapply(tabla_encuestas$valueNumeric,as.numeri
 
 # Filtramos las preguntas que nos interesan, asignamos id único y tipo de respuesta
 
-tabla_encuestas$description_1_t<- tolower(str_replace_all(tabla_encuestas$description_1,c('-'='','  '=' ','   '=' ',' '='_')))
-tabla_encuestas$description_2_t<- tolower(str_replace_all(tabla_encuestas$description_2,c('-'='','  '=' ','   '=' ',' '='_')))
-tabla_encuestas$description_t<- tolower(str_replace_all(tabla_encuestas$description,c('-'='','  '=' ','   '=' ',' '='_')))
+tabla_encuestas[c('description_1_t','description_2_t','description_t')] <- apply(tabla_encuestas[c('description_1','description_2','description')],2,
+                                                                                 function(x) tolower(str_replace_all(x,c('-'='','  '=' ','   '=' ',' '='_'))))
+# tabla_encuestas$description_1_t<- tolower(str_replace_all(tabla_encuestas$description_1,c('-'='','  '=' ','   '=' ',' '='_')))
+# tabla_encuestas$description_2_t<- tolower(str_replace_all(tabla_encuestas$description_2,c('-'='','  '=' ','   '=' ',' '='_')))
+# tabla_encuestas$description_t<- tolower(str_replace_all(tabla_encuestas$description,c('-'='','  '=' ','   '=' ',' '='_')))
 
 preguntas <- as.numeric(preguntas)
 tabla_encuestas$questionId <- sapply(tabla_encuestas$questionId,as.numeric)
-tabla_encuestas_f  <- tabla_encuestas %>% #filter(questionId %in% preguntas) %>%
+tabla_encuestas_f  <- tabla_encuestas %>% filter(questionId %in% preguntas) %>%
                       mutate(id_unico_pregunta = ifelse((is.na(description_2))&(is.na(description_1))&(is.na(description)), questionId,
                                                   ifelse((is.na(description_2))&(is.na(description_1))&(!is.na(description)),paste(questionId,description_t,sep='_'),
                                                     ifelse((is.na(description_2))&(!is.na(description_1))&(is.na(description)),paste(questionId,description_1_t,sep='_'),

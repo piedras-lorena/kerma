@@ -8,6 +8,7 @@ library(data.table)
 library(stringr)
 library(plyr)
 library(qpcR)
+library(scales)
 options(scipen = 999)
 
 source('Proyectos/Otros/kerma/r_script/lib/utils_script2.R')
@@ -242,10 +243,12 @@ total_res <- distribucion_fecha %>% group_by(questionId) %>%
 distribucion_fecha_f <- distribucion_fecha %>%  group_by(questionId,mes,valueDate) %>%
                         dplyr::summarise(count = n()) %>% left_join(total_res) %>% 
                         mutate(valor_1 = count/total) %>% rename(c('mes'='respuesta_unica')) %>% arrange(questionId,valueDate) %>%
-                        dplyr::select(respuesta_unica,valor_1)
-distribucion_fecha_f <-distribucion_fecha_f %>% mutate(renglon = seq(1,nrow(distribucion_fecha_f)),
-                                                       seccion = paste(4,1,renglon,sep = '_')) %>%
-                       dplyr::select(-renglon)
+                        dplyr::select(respuesta_unica,valor_1,questionId)
+renglon <- diccionario_diferentes[diccionario_diferentes$tipo_tabla == 'distribucion_fecha',] %>% group_by(columna_1) %>% 
+           slice(1) %>% dplyr::select(renglon,columna_1) %>% rename(c('columna_1' = 'questionId'))
+distribucion_fecha_f <-distribucion_fecha_f %>% left_join(renglon) %>%
+                       mutate(seccion = paste(4,1,renglon,sep = '_')) %>%
+                      dplyr::select(-renglon,-questionId)
 # DISTRIBUCION FECHA 132
 distribucion_fecha_132 <- tabla_encuestas_f %>% filter(questionId == 132) %>%
                           mutate(valueDate = month(as.Date(valueDate))) %>% left_join(meses)
@@ -283,11 +286,13 @@ resumen_promedio_hm <- resumen_promedio_hm  %>% dplyr::group_by(seccion) %>%
 #Resumen si no con respuesta
 si_no_cr <- resumen_diferentes_r %>% filter(tipo_tabla == 'si_no_cr')
 
-total <- length(si_no_cr$userId %>% unique())
+total <- length(si_no_cr$userId  %>% unique())
+
 si_no_cr_r <- si_no_cr %>% dplyr::group_by(seccion,valor) %>%
               dplyr::summarize(res = length(userId)/total) %>%
               spread(key = valor, value = res) %>%
-              rename(c('Si'='valor_1','No'='valor_2'))
+              rename(c('Si'='valor_1','No'='valor_2',
+                       '<NA>' = 'N/A'))
 
 
 #Resumen personal edad años
@@ -367,9 +372,32 @@ valor_promedio['valor'] <- sapply(valor_promedio$valor, as.numeric)
 valor_promedio_r <- valor_promedio %>%
                     group_by(seccion) %>% dplyr::summarize(Promedio = mean(valor,na.rm = T))
 
+# Convertimos a porcentaje
+columnas_percent <- c("valor_1","valor_2","N/A","valor_1_2","valor_2_2","N/A_2","valor_1_3","valor_2_3","N/A_3",
+                      "valor_1_4","valor_2_4","N/A_4","valor_1_5","valor_2_5")
+sub_total[columnas_percent] <- apply(sub_total[columnas_percent],2, function(x) mapply(cambiar_porcent,x))
+
+columnas_percent <- c("valor_1_1","valor_2_1","N/A_1","valor_1_3","valor_2_3","N/A_3",
+                      "valor_1_4","valor_2_4","N/A_4")
+distribucion_total[columnas_percent] <- apply(distribucion_total[columnas_percent],2, function(x) mapply(cambiar_porcent,x))
+
+columnas_percent <- c('H%','M%')
+resumen_promedio_hm[columnas_percent] <- apply(resumen_promedio_hm[columnas_percent],2, function(x) mapply(cambiar_porcent,x))
+
+columnas_percent <- c('valor_1','valor_2','N/A')
+si_no_cr_r[columnas_percent] <- apply(si_no_cr_r[columnas_percent],2, function(x) mapply(cambiar_porcent,x))
+distribucion_fecha_todas['valor_1'] <- mapply(cambiar_porcent,distribucion_fecha_todas$valor_1)
+  
 # Pegamos todas las tablas en una
 tabla_final <- rbindlist(list(resumen_normal_r,sub_total,distribucion_total,resumen_promedio_sr,resumen_distribucion_cat,resumen_normal_sr_r,resumen_promedio_hm,si_no_cr_r,
                personal_edad_anios_r,personal_tarifa_edad_r,valor_promedio_r,distribucion_fecha_todas),fill = T)
+
+
+
+# Formateamos tabla -------------------------------------------------------
+# Sustituimos los valores de infinito
+tabla_final[mapply(is.infinite, Alto),'Alto'] <- NA
+tabla_final[mapply(is.infinite, Bajo),'Bajo'] <- NA
 
 write_csv(mapeo_nombres , 'Proyectos/Otros/kerma/data/interim/mappeo_nombres_resumen_reporte.csv')
 write_csv(tabla_final , 'Proyectos/Otros/kerma/data/interim/tabla_resumen_final.csv')

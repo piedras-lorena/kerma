@@ -47,3 +47,10 @@ resumenes_diferentes_func <- function(columna_1,seccion_subseccion,renglon, tipo
 convertir_vector<- function(row){
   unlist(strsplit(row, split=";"))
 }
+
+cambiar_porcent<- function(x){
+  if(is.na(x)){
+    valor <- x
+  } else valor <- percent(x)
+  return(valor)
+}
