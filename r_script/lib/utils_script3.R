@@ -53,21 +53,30 @@ tabla_promedio_normal<- function(seccion,subseccion,porcent_h_m = 0){
       plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo)))
   }
   return(dt)
-  }
+}
 
-tabla_si_no <- function(seccion,subseccion,renglones = c(),aparece_sec = 1){
+tabla_si_no <- function(seccion,subseccion,renglones = c(),aparece_sec = 1,incl_na = 0){
   nombre_acronimo <- tabla_nombres_despachos %>% filter(id == id_despacho)
   if(length(renglones) != 0){
     filtro <- sprintf('^%s_%s_(%s)$',seccion,subseccion,paste(renglones , collapse = '|'))
   } else{
     filtro <- sprintf('^%s_%s_',seccion,subseccion)
   }
+  if(incl_na == 0){
   dt <- tabla_reporte %>% filter(grepl(filtro,seccion)) %>%
     dplyr::select(valor,valor_1,valor_2,seccion) %>% 
     plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo),
                    'valor_1' = 'SI', 'valor_2' = 'NO')) %>% left_join(nombres_preguntas) %>%
     dplyr::select(name,everything()) %>% 
     plyr::rename(c('name'=''))
+  } else{
+    dt <- tabla_reporte %>% filter(grepl(filtro,seccion)) %>%
+      dplyr::select(valor,valor_1,valor_2,`N/A`,seccion) %>% 
+      plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo),
+                     'valor_1' = 'SI', 'valor_2' = 'NO')) %>% left_join(nombres_preguntas) %>%
+      dplyr::select(name,everything()) %>% 
+      plyr::rename(c('name'=''))
+  }
   if(aparece_sec == 1){
     dt <- dt %>% dplyr::select(-seccion)
   }
@@ -109,5 +118,15 @@ tabla_compensaciones <- function(seccion,subseccion,tipo = 'personal_edad_anios'
           dplyr::select(nombre_viejo,valor,Promedio,`Personal total`,Tarifa,Edad,`25%`,`50%`,`75%`,Alto,Bajo,`VS PROM`) %>%
           plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo)))    
   }
+  return(dt)
+}
+
+formato_primera_col <- function(dt,nombre_1,nombre_2,filtro_categoria){
+  dt <- dt %>% mutate(col_2 = gsub(filtro_categoria,'',dt$nombre_viejo))
+  filtro_nuevo <- sprintf('_%s$',paste(dt$col_2 %>% unique(),collapse = '|_'))
+  dt <- dt %>% mutate (col_1 = gsub('_',' ',gsub(filtro_nuevo,' ', nombre_viejo)),
+                       col_2 = gsub('_',' ',col_2)) %>% 
+    dplyr::select(col_1,col_2,everything(),-nombre_viejo) %>%
+    plyr::rename(c('col_1'=nombre_1,'col_2'=nombre_2))
   return(dt)
 }

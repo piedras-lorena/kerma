@@ -1,5 +1,5 @@
 ---
-title: "Reporte Kerma"
+title: ""
 output: 
   pdf_document:
 # header-includes:
@@ -29,13 +29,14 @@ library(xtable)
 library(kableExtra)
 library(pander)
 library(scales)
+library(ggplot2)
 
 options(scipen = 999)
 setwd("/home/lorena/Proyectos/Otros/kerma/r_script/reporte/")
 source('../lib/utils_script3.R')
 
   
-id_despacho <- 9
+id_despacho <- 15
 tabla_reporte <- crear_tabla_reporte(id_despacho)
 tabla_nombres_despachos <- read_csv('../../data/interim/UsuariosActivos.csv',
                                       col_types = cols(.default = 'c'))
@@ -50,7 +51,18 @@ nombres_preguntas <- tabla_encuesta %>% dplyr::select(questionId,name) %>% uniqu
                      filter(!is.na(seccion)) %>% dplyr::select(-questionId)
 
 categoria <- read_csv('../../data/interim/CategoryHumanCapital.csv',
-                      col_types = cols(.default = 'c')) %>% dplyr::mutate(categoria_filtro = ifelse(is.na(description_1)|is.na(description_2),description,paste(description,description_1,sep = '_')))
+                      col_types = cols(.default = 'c')) %>% dplyr::mutate(categoria_filtro =    ifelse(is.na(description_1)|is.na(description_2),description,paste(description,description_1,sep = '_')))
+
+diccionario_diferentes <- read_csv('../../data/interim/tablas_resumen_diferentes - Hoja 1.csv',col_types = cols(.default = 'c')) %>%
+                          mutate(seccion = ifelse(is.na(renglon),paste(seccion,subseccion,sep = '_'),
+                                 paste(seccion,subseccion,renglon,sep = '_')),
+                                 columna_1 = word(columna_1,1,sep = '_')) %>%
+                          dplyr::select(seccion,columna_1) %>%
+                          plyr::rename(c('columna_1' = 'questionId'))
+diccionario_aguinaldo <- data.frame(nombre_viejo = c('111','190','241','262','285'), nombre = c('Abogados','Pasantes','Gerentes área administrativa','Staff administrativo','Apoyo administrativo'),stringsAsFactors = F)
+
+filtro_categoria <- sprintf('^%s_',paste(categoria$categoria_filtro %>% unique(),collapse = '_|'))
+                        
 ```
 
 \pagebreak
@@ -73,20 +85,30 @@ La realización de esta encuesta surgió de la necesidad de contar con herramien
 
 ### 2.1. Total personal profesional
 <br>
-```{r, echo=FALSE}
-filtro_categoria <- sprintf('^%s_',paste(categoria$categoria_filtro %>% unique(),collapse = '_|'))
+```{r, echo=FALSE, fig.width=18, fig.height=12}
 dt <- tabla_promedio_normal(2,1, 1) 
 dt <- dt %>% mutate(`Personal Profesional`= gsub(filtro_categoria,'',dt$nombre_viejo))
 filtro_nuevo <- sprintf('_%s$',paste(dt$`Personal Profesional` %>% unique(),collapse = '|_'))
-dt <- dt %>% mutate (` `= gsub('_',' ',gsub(filtro_nuevo,' ',dt$nombre_viejo)),
+dt <- dt %>% mutate (` `= gsub('_',' ',gsub(filtro_nuevo,' ',nombre_viejo)),
                     `Personal Profesional`= gsub('_',' ',`Personal Profesional`)) %>%
                     dplyr::select(` `,`Personal Profesional`,everything(),-nombre_viejo)
+
 
 kable(dt, format = "latex", booktabs = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8)  %>%
   column_spec(1,width = "4em") %>%
   column_spec(3:5,bold = T) %>%
   collapse_rows(columns = 1)
+nombre_acronimo <- tabla_nombres_despachos %>% filter(id == id_despacho)
+plot <- dt[,c(1,2,3,6)] 
+colnames(plot) = c('n_1','n_2',nombre_acronimo$acronimo,'Promedio')
+plot[, 2:3][is.na(plot[, 2:3])] <- 0
+plot[is.nan(plot$Promedio),'Promedio'] <- 0
+plot <- plot %>% mutate(Categoria = paste(n_1,n_2)) %>%
+        dplyr::select(-n_1,-n_2) %>%
+        gather(key = 'variable',value = 'total_personal',1:2)
+ggplot(plot, aes(x = Categoria, y = total_personal,fill = variable)) + geom_bar(position = 'dodge',stat="identity") +
+  coord_flip() + theme_grey(base_size = 18)  
 ```
 
 \pagebreak
@@ -95,13 +117,12 @@ kable(dt, format = "latex", booktabs = T) %>%
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,2, 1)
-dt <- dt %>% mutate(nombre_viejo = gsub('_',' ',gsub('gerente_de_administración_|staff_de_administración_','',nombre_viejo))) %>%
-      plyr::rename(c('nombre_viejo' = 'Personal Profesional'))
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
 
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(1,width = "6em") %>%
+  column_spec(3:5,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -109,83 +130,85 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,3, 1)
-dt <- dt %>% mutate(nombre_viejo = gsub('_',' ',gsub('apoyo_de_administración_','',nombre_viejo))) %>%
-      plyr::rename(c('nombre_viejo' = 'Personal Profesional'))
+# dt <- dt %>% mutate(nombre_viejo = gsub('_',' ',gsub('apoyo_de_administración_','',nombre_viejo))) %>%
+#       plyr::rename(c('nombre_viejo' = 'Personal Profesional'))
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff apoyo',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T)
+  column_spec(2:4,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 2.4. Crecimiento personal profesional
 <br>
 ```{r, echo=FALSE}
-dt <- tabla_promedio_normal(2,4, 0) %>%
-      mutate(nombre_viejo = gsub('_',' ',nombre_viejo)) %>%
-      plyr::rename(c('nombre_viejo' = 'Personal Profesional'))
+dt <- tabla_promedio_normal(2,4, 0) 
 dt[,2:8] <- sapply(dt[,2:8],as.numeric)
 dt[,2:8] <- apply(dt[,2:8],2, function(x) mapply(cambiar_porcent,x))
 
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
 ### 2.5. Crecimiento personal administrativo
 <br>
 ```{r, echo=FALSE}
-dt <- tabla_promedio_normal(2,5, 0) %>%
-      mutate(nombre_viejo = gsub('_',' ',nombre_viejo)) %>%
-      plyr::rename(c('nombre_viejo' = 'Personal Profesional'))
+dt <- tabla_promedio_normal(2,5, 0)
 dt[,2:8] <- sapply(dt[,2:8],as.numeric)
 dt[,2:8] <- apply(dt[,2:8],2, function(x) mapply(cambiar_porcent,x))
-kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
+
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
+  kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(1,width = "6em") %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
 ### 2.6. Crecimiento staff apoyo
 <br>
 ```{r, echo=FALSE}
-dt <- tabla_promedio_normal(2,6, 0) %>%
-      mutate(nombre_viejo = gsub('_',' ',nombre_viejo)) %>%
-      plyr::rename(c('nombre_viejo' = 'Personal Profesional'))
+dt <- tabla_promedio_normal(2,6, 0)
+
 dt[,2:8] <- sapply(dt[,2:8],as.numeric)
 dt[,2:8] <- apply(dt[,2:8],2, function(x) mapply(cambiar_porcent,x))
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff Apoyo',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
 ### 2.7. Experiencia personal profesional (años desde la titulación)
 <br>
 ```{r, echo=FALSE}
-dt <- tabla_promedio_normal(2,7, 0) %>%
-      mutate(nombre_viejo = gsub('_',' ',nombre_viejo)) %>%
-      plyr::rename(c('nombre_viejo' = 'Personal Profesional'))
+dt <- tabla_promedio_normal(2,7, 0)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
 ### 2.8. Experiencia personal administrativo
 <br>
 ```{r, echo=FALSE}
-dt <- tabla_promedio_normal(2,8, 0) %>%
-      mutate(nombre_viejo = gsub('_',' ',nombre_viejo)) %>%
-      plyr::rename(c('nombre_viejo' = 'Personal Profesional'))
+dt <- tabla_promedio_normal(2,8, 0)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
+
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(1,width = "6em") %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -193,10 +216,13 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,9, 0)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff Apoyo',filtro_categoria)
+dt <- dt[,-1]
+
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -204,10 +230,12 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,10, 0)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -215,10 +243,11 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,11, 0)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(1,width = "6em") %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -226,10 +255,13 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,12, 0)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff Apoyo',filtro_categoria)
+
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -239,11 +271,12 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 dt <- tabla_promedio_normal(2,13, 0)
 dt[,2:8] <- sapply(dt[,2:8],as.numeric)
 dt[,2:8] <- apply(dt[,2:8],2, function(x) mapply(cambiar_porcent,x))
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
 
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -255,10 +288,11 @@ dt[,2:8] <- sapply(dt[,2:8],as.numeric)
 dt[grepl('^gerente_',dt$nombre_viejo),2:8] <- dt[grepl('^gerente_',dt$nombre_viejo),2:8]/100
 dt[,2:8] <- apply(dt[,2:8],2, function(x) mapply(cambiar_porcent,x))
 
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(1,width = "6em") %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -269,10 +303,12 @@ dt <- tabla_promedio_normal(2,15, 0)
 dt[,2:8] <- sapply(dt[,2:8],as.numeric)
 dt[,2:8] <- apply(dt[,2:8],2, function(x) mapply(cambiar_porcent,x))
 
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff Apoyo',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -280,11 +316,11 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,16, 0)
-
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -292,10 +328,12 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,17, 0)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
+
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(1,width = "6em") %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -304,10 +342,12 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(2,18, 0)
 
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff Apoyo',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -321,7 +361,7 @@ dt[,2:8] <- format(round(sapply(dt[,2:8],as.numeric),digits = 2),scientific=FALS
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(2,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -332,7 +372,7 @@ dt<- tabla_si_no(2,20,c(1,2))
 kable(dt, format = "latex", booktabs = T,longtable = T) %>% 
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2:4,bold = T) %>%
+  column_spec(2,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -401,11 +441,11 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,1)
-
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -414,6 +454,8 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,3,'personal_edad_tarifa')
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -426,10 +468,11 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,4)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(1:2,width = "6em") %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -438,6 +481,8 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,5)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -450,10 +495,11 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,6)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -462,6 +508,8 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,7,'personal_edad_tarifa')
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -474,10 +522,11 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,8)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(1:2,width = "6em") %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -486,6 +535,8 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,9)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff Apoyo',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -498,17 +549,21 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,10)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
+
 ### 3.11. Sueldo base promedio anual con compensaciones personal profesional por años de experiencia
 <br>
 
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,11,'personal_edad_tarifa')
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -520,10 +575,11 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,12)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
-  column_spec(1,width = "8em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(1:2,width = "6em") %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -531,6 +587,8 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,13)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff Apoyo',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -543,6 +601,8 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,14.1)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Profesionales No Abogados',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -554,6 +614,8 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,14.2)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Profesionales No Abogados',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -565,6 +627,8 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_compensaciones(3,14.3)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Profesionales No Abogados',filtro_categoria)
+dt <- dt[,-1]
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "8em") %>%
@@ -654,6 +718,49 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "12em")%>%
   collapse_rows(columns = 1)
+```
+
+### 3.16.3. Plan de carrera y desarrollo
+<br>
+```{r, echo=FALSE, message=FALSE}
+dt <- tabla_si_no(3,16.3,c(1),aparece_sec = 0) %>%
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) 
+dt <- dt[,-1] %>%
+      dplyr::select(name,everything(),-seccion,-questionId) %>%
+      plyr::rename(c('name' = ''))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "12em")
+
+dt <- tabla_promedio_normal(3,'16.3') %>% filter(nombre_viejo == '237') %>%
+      left_join(tabla_encuesta[c('questionId','name')] %>% unique(), by = c('nombre_viejo'='questionId')) %>%
+      dplyr::select(name,everything(),-nombre_viejo)%>%
+      plyr::rename(c('name' = ''))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "12em")
+
+dt <- tabla_si_no(3,16.3,c(3),aparece_sec = 0) %>%
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) 
+dt <- dt[,-1] %>%
+      dplyr::select(name,everything(),-seccion,-questionId) %>%
+      plyr::rename(c('name' = ''))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "12em")
+
+dt <- tabla_promedio_normal(3,'16.3') %>% filter(nombre_viejo == '240') %>%
+      left_join(tabla_encuesta[c('questionId','name')] %>% unique(), by = c('nombre_viejo'='questionId')) %>%
+      dplyr::select(name,everything(),-nombre_viejo)%>%
+      plyr::rename(c('name' = ''))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "12em")
+
+dt <- distribucion_tabla(3,'16.3',c(5:13),'¿Cuántos años en promedio le debe tomar a un abogado recién recibido ser socio de la firma? ')
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "12em")
 ```
 
 
@@ -769,10 +876,11 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
 <br>
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_promedio_normal(4,0)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Bono (expresado en meses que se otorgan)',filtro_categoria)
 kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
   column_spec(1,width = "12em") %>%
-  column_spec(2,bold = T) %>%
+  column_spec(3,bold = T) %>%
   collapse_rows(columns = 1)
 ```
 
@@ -797,103 +905,321 @@ kable(dt, format = "latex", booktabs = T,longtable = T) %>%
   column_spec(1,width = "12em")
 
 ```
+
+### 4.2 Elementos para determinar el bono
+<br>
+```{r, echo=FALSE, message=FALSE}
+dt <- tabla_si_no(4,2,c(1:6),0) %>% left_join(diccionario_diferentes) %>%
+      left_join(tabla_encuesta[c('questionId','name')] %>% unique())
+dt <- dt[,-1] %>% dplyr::select(name,SI,NO) %>%
+      plyr::rename(c('name' = 'Elementos para determinar el bono de Personal Profesional'))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "12em")
+
+dt <- tabla_si_no(4,2,c(7:10),0) %>% left_join(diccionario_diferentes) %>%
+      left_join(tabla_encuesta[c('questionId','name')] %>% unique())
+dt <- dt[,-1] %>% dplyr::select(name,SI,NO) %>%
+      plyr::rename(c('name' = 'Elementos para determinar el bono de Personal Administrativo'))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "12em")
+
+```
+
+### 4.3. Porcentaje de sueldo que representa la parte variable
+
+```{r, echo=FALSE}
+dt <- tabla_promedio_normal(4,3) %>%
+      left_join(tabla_encuesta[c('questionId','name')] %>% unique(), by = c('nombre_viejo' = 'questionId')) %>%
+      dplyr::select(name, everything(),-nombre_viejo) %>% plyr::rename(c('name' = ' '))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  collapse_rows(columns = 1)
+```
+
+
 ## 5. Prestaciones
 ### 5.1. Aguinaldo personal profesional
 <br>
-```{r, echo=FALSE}
-dt <- tabla_promedio_normal(5,1.1)
-panderOptions('table.split.table', 300)      
-pander(dt)
+```{r, echo=FALSE,message=FALSE}
+dt <- tabla_promedio_normal(5,1.1) %>% left_join(diccionario_aguinaldo) %>%
+      dplyr::select(nombre,everything(),-nombre_viejo) %>% plyr::rename(c('nombre'=''))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 5.2. Aguinaldo personal administrativo
 <br>
-```{r, echo=FALSE}
-dt <- tabla_promedio_normal(5,2)
-panderOptions('table.split.table', 300)      
-pander(dt)
+```{r, echo=FALSE,message=FALSE}
+dt <- tabla_promedio_normal(5,2) %>% left_join(diccionario_aguinaldo) %>%
+      dplyr::select(nombre,everything(),-nombre_viejo) %>% plyr::rename(c('nombre'=''))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 5.3. Aguinaldo staff apoyo
 <br>
-```{r, echo=FALSE}
-dt <- tabla_promedio_normal(5,3)
-panderOptions('table.split.table', 300)      
-pander(dt)
-```
-
-### 5.4. Entrega de aguinaldo
-Falta esta tabla
-<br>
-```{r, echo=FALSE}
-dt <- distribucion_tabla(5,4)
-panderOptions('table.split.table', 300)      
-pander(dt)
+```{r, echo=FALSE,message=FALSE}
+dt <- tabla_promedio_normal(5,3) %>% left_join(diccionario_aguinaldo) %>%
+      dplyr::select(nombre,everything(),-nombre_viejo) %>% plyr::rename(c('nombre'=''))
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em")
 ```
 
 ### 5.5. Reparto de utilidades
-Falta esta tabla
 <br>
 ```{r, echo=FALSE, message=FALSE}
 dt <- tabla_si_no(5,5,c(1),aparece_sec = 0) %>%
       mutate(Pregunta = '¿Este año se realizará reparto de utilidades?') %>% select(Pregunta, SI, NO) %>% plyr::rename(
         c('Pregunta'=''))
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  collapse_rows(columns = 1)
 
 dt <- distribucion_tabla(5,5,c(2:4),nombre_col = '¿Correspondientes a qué año?') 
 panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em")
 
 preguntas <- data.frame(preguntas = c('No de días considerados al año','Sueldo máximo considerado'), seccion = c('5_5_3','5_5_4'),stringsAsFactors = F)
 dt <-tabla_reporte %>% filter(grepl('^5_5_(3|4)',seccion)) %>% dplyr::select(seccion,valor,Promedio,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`)  %>% plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo))) %>% left_join(preguntas) %>% select(preguntas,everything(),-seccion)
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em")
 
 dt <- distribucion_tabla(5,5,c(5:9),nombre_col = 'Mes de pago para reparto de utilidades')
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em")
 ```
 
 ### 5.6. Vacaciones personal profesional
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(5,6)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(3,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 5.7. Vacaciones personal administrativo
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(5,7)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Administrativo',filtro_categoria)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(3,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 5.8. Vacaciones staff de apoyo
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(5,8)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Staff Apoyo',filtro_categoria)
+dt <- dt[,-1]
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 
 ## 6. Seguros y jubilación
 ### 6.1. Seguro de vida
-Falta sección
 <br>
+```{r, echo=FALSE,message=FALSE}
+dt <- tabla_reporte %>% filter(grepl('^6_1_',seccion)) %>% dplyr::select(valor_1_1,valor_2_1,Promedio,
+                                                                         valor_1_3,valor_2_3,seccion) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c(' ','SI','NO','Años de trabajo asegurados','SI','N0')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  add_header_above(c(" ", "Seguro de Vida" = 3, "Seguro de Vida en el Extranjero" = 2)) %>%
+  collapse_rows(columns = 1)
+```
 
 ### 6.2. Gastos médicos
 <br>
 
-```{r, echo=FALSE}
-prueba <- tabla_reporte %>% filter(grepl('^6_2_',seccion)) %>% select(valor_1_1,valor_2_1,Promedio,valor_1_3,valor_2_3,valor_1_4,valor_2_4)
+```{r, echo=FALSE,message=FALSE}
+dt <- tabla_reporte %>% filter(grepl('^6_2_',seccion)) %>% dplyr::select(valor_1_1,valor_2_1,Promedio,
+                                                                         valor_1_3,valor_2_3,seccion, valor_1_4,valor_2_4) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c(' ','SI','NO','Suma Asegurada','SI','N0','SI','NO')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  add_header_above(c(" ", "Gastos Médicos Mayores" = 3, "Gastos Médicos en el Extranjero" = 2,
+                     "Gastos Médicos Menores" = 2)) %>%
+  collapse_rows(columns = 1)
 ```
 
+### 6.3. Edad de retiro y jubilación
+<br>
+
+```{r, echo=FALSE,message=FALSE}
+dt <- tabla_reporte %>% filter(grepl('^6_3_',seccion)) %>% dplyr::select(valor_1_1,valor_2_1,
+                                                                         valor_1_3,valor_2_3,seccion) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c(' ','SI','NO','SI','N0')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  add_header_above(c(" ", "Edad para el retiro" = 2, "Planes de jubilación" = 2)) %>%
+  collapse_rows(columns = 1)
+```
+
+### 6.4. Sucesión y Seguro de Responsabilidad Civil
+<br>
+
+```{r, echo=FALSE,message=FALSE}
+renglones <- paste(c(1:7),collapse = '|')
+dt <- tabla_reporte %>% filter(grepl(sprintf('^6_4_(%s)$',renglones),seccion)) %>% dplyr::select(valor_1,valor_2,seccion) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c('Sistema de sucesión','SI','NO')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  collapse_rows(columns = 1)
+
+renglones <- paste(c(8:12),collapse = '|')
+dt <- tabla_reporte %>% filter(grepl(sprintf('^6_4_(%s)$',renglones),seccion)) %>% dplyr::select(valor_1,valor_2,seccion) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c('Seguro de Responsabilidad Civil Profesional','SI','NO')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  collapse_rows(columns = 1)
+
+```
+
+### 6.5. Días festivos
+<br>
+
+```{r, echo=FALSE,message=FALSE}
+
+dt <- tabla_reporte %>% filter(grepl('^6_5_',seccion) & !is.na(respuesta_unica)) %>% dplyr::select(respuesta_unica,Porcentaje)
+
+colnames(dt) <- c('Días festivos adicionales a la ley', 'No laborable')
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  collapse_rows(columns = 1)
+```
+
+### 6.6. Otras prestaciones
+<br>
+```{r, echo=FALSE,message=FALSE}
+
+renglones <- paste(c(1:19),collapse = '|')
+dt <- tabla_reporte %>% filter(grepl(sprintf('^6_6_(%s)$',renglones),seccion)) %>% 
+      dplyr::select(valor_1,valor_2,valor_1_2,valor_2_2,valor_1_3,valor_2_3,valor_1_4,valor_2_4,seccion) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c(' ', 'SI','NO','SI','NO','SI','NO','SI','NO')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  add_header_above(c(" ", "Previsión Social" = 2, "Fondo de Ahorro" = 2, "Vales de Despensa" = 2, "Ayuda para Comida" = 2)) %>%
+  collapse_rows(columns = 1)
+
+renglones <- paste(c(20:21),collapse = '|')
+dt <- distribucion_tabla(6,6,renglones,nombre_col = 'Tipo de ayuda para comida')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  collapse_rows(columns = 1)
+
+
+```
+
+### 6.7. Apoyo en estudios
+<br>
+```{r, echo=FALSE,message=FALSE}
+
+dt <- tabla_reporte %>% filter(grepl('^6_7_',seccion)) %>% 
+      dplyr::select(valor_1,valor_2,valor_1_2,valor_2_2,valor_1_3,valor_2_3,valor_1_4,valor_2_4,valor_1_5,valor_2_5,seccion) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c(' ', 'SI','NO','SI','NO','SI','NO','SI','NO','SI','NO')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  add_header_above(c(" ", "Internship" = 2, "Apoyo en estudios y capacitación" = 2, "Coaching" = 2, "Becas nacionales" = 2,
+                     "Becas extranjero"= 2)) %>%
+  collapse_rows(columns = 1)
+
+```
+
+### 6.8. Pago de asociaciones y promoción
+<br>
+```{r, echo=FALSE,message=FALSE}
+
+dt <- tabla_reporte %>% filter(grepl('^6_8_',seccion)) %>% 
+      dplyr::select(valor_1,valor_2,valor_1_2,valor_2_2,valor_1_3,valor_2_3,valor_1_4,valor_2_4,valor_1_5,valor_2_5,seccion) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c(' ', 'SI','NO','SI','NO','SI','NO','SI','NO','SI','NO')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  add_header_above(c(" ", "Celular" = 2, "Pago de cuotas en asociaciones nacionales" = 2, "Pago de cuotas en asociaciones internacionales" = 2, 
+                     "Viajes de promoción" = 2,"Colegiaturas"= 2)) %>%
+  collapse_rows(columns = 1)
+
+```
+
+### 6.9. Automóvil/motocicleta
+<br>
+```{r, echo=FALSE,message=FALSE}
+
+dt <- tabla_reporte %>% filter(grepl('^6_9_',seccion)) %>% 
+      dplyr::select(valor_1,valor_2,valor_1_2,valor_2_2,seccion) %>% 
+      left_join(diccionario_diferentes) %>% left_join(tabla_encuesta[c('questionId','name')] %>% unique()) %>%
+      dplyr::select(name,everything(),-questionId,-seccion)
+colnames(dt) <- c(' ', 'SI','NO','SI','NO')
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  add_header_above(c(" ", "Automóvil" = 2, "Motocicleta" = 2)) %>%
+  collapse_rows(columns = 1)
+
+```
 
 ## 7. Tarifas y rentabilidad
+
 ### 7.1. Ingresos
 <br>
 ```{r, echo=FALSE}
@@ -902,8 +1228,11 @@ dt <- tabla_promedio_normal(7,1) %>%
                 by = c('nombre_viejo'='questionId')) %>%
       dplyr::select(name,everything(),-nombre_viejo) %>%
       plyr::rename(c('name'='Ingresos'))
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 7.2. Tipo de cambio
@@ -914,16 +1243,22 @@ dt <- tabla_promedio_normal(7,2) %>%
                 by = c('nombre_viejo'='questionId')) %>%
       dplyr::select(name,everything(),-nombre_viejo) %>%
       plyr::rename(c('name'='Ingresos'))
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T)
 ```
 
 ### 7.3. Tipo de cambio
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(7,3)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt[,2] <- round(sapply(dt[,2],as.numeric),digits = 2)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 7.4. Facturación
@@ -937,8 +1272,11 @@ preguntas <- data.frame(Preguntas = c('¿En qué porcentaje de las facturas se o
 dt <- tabla_reporte %>% filter(grepl('^7_4_',seccion)) %>%
       dplyr::select(seccion,Promedio,`25%`,`50%`,`75%`,Alto,Bajo) %>% left_join(preguntas) %>%
       dplyr::select(Preguntas,everything(),-seccion) %>% plyr::rename(c('Preguntas'=''))
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 
@@ -947,64 +1285,150 @@ pander(dt)
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(8,0)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(3,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 8.1. Horas objetivo por tarifa horaria
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(8,1)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(3,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 8.2. Horas reportadas por tarifa horaria
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(8,2)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(3,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 8.3. Horas objetivo por tarifa horaria
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(8,3)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(3,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 8.4. Realización
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(8,4)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(3,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 8.5. Productividad
 <br>
 ```{r, echo=FALSE}
 dt <- tabla_promedio_normal(8,5)
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt[,2] <- round(sapply(dt[,2],as.numeric),digits = 2)
+
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Personal Profesional',filtro_categoria)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(3,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 8.6. Horas objetivo, horas reportadas, horas facturadas personal profesional por años de experiencia
 <br>
 ```{r, echo=FALSE}
-dt <- tabla_promedio_normal(8,6)
-panderOptions('table.split.table', 300)      
-pander(dt)
+renglones <- paste(c(1:8),collapse = '|')
+dt <- tabla_reporte %>% filter(grepl(sprintf('^8_6_(%s)$',renglones),seccion)) %>%
+      dplyr::select(nombre_viejo,valor,Promedio,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`)  %>% 
+      plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo)))
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Horas objetivo',filtro_categoria)
+dt <- dt[,-1]
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
+
+renglones <- paste(c(9:16),collapse = '|')
+dt <- tabla_reporte %>% filter(grepl(sprintf('^8_6_(%s)$',renglones),seccion)) %>%
+      dplyr::select(nombre_viejo,valor,Promedio,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`)  %>% 
+      plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo))) 
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Horas reportadas',filtro_categoria)
+dt <- dt[,-1]
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
+
+renglones <- paste(c(17:24),collapse = '|')
+dt <- tabla_reporte %>% filter(grepl(sprintf('^8_6_(%s)$',renglones),seccion)) %>%
+      dplyr::select(nombre_viejo,valor,Promedio,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`)  %>% 
+      plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo)))
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Horas facturadas',filtro_categoria)
+dt <- dt[,-1]
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ### 8.7. Realización y productividad abogados por años de experiencia
 <br>
 ```{r, echo=FALSE}
-dt <- tabla_promedio_normal(8,7)
-panderOptions('table.split.table', 300)      
-pander(dt)
+renglones <- paste(c(1:8),collapse = '|')
+dt <- tabla_reporte %>% filter(grepl(sprintf('^8_7_(%s)$',renglones),seccion)) %>%
+      dplyr::select(nombre_viejo,valor,Promedio,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`)  %>% 
+      plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo)))
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Horas objetivo',filtro_categoria)
+dt <- dt[,-1]
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
+
+renglones <- paste(c(9:16),collapse = '|')
+dt <- tabla_reporte %>% filter(grepl(sprintf('^8_7_(%s)$',renglones),seccion)) %>%
+      dplyr::select(nombre_viejo,valor,Promedio,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`)  %>% 
+      plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo))) 
+dt[,2] <- round(sapply(dt[,2],as.numeric),digits = 2)
+dt <- formato_primera_col(dt = dt,nombre_1 = '',nombre_2 = 'Horas reportadas',filtro_categoria)
+dt <- dt[,-1]
+
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ## 9. Cuentas por cobrar
@@ -1014,59 +1438,86 @@ preguntas <- data.frame(preguntas = c('Días cartera promedio',
 dt <- tabla_promedio_normal(9,0) %>% bind_cols(preguntas) %>%
       dplyr::select(preguntas, everything(),-nombre_viejo) %>% 
       plyr::rename(c('preguntas'='')) 
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ## 10. Mercadotecnia
 <br>
 ```{r, echo=FALSE,message=FALSE}
-dt <- tabla_si_no(10,0,c(1:3))
-panderOptions('table.split.table', 300)      
-pander(dt)
+dt <- tabla_si_no(10,0,c(1:3),incl_na = 1)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 
-dt <- tabla_si_no(10,0,c(4:11),aparece_sec = 0) %>% 
+dt <- tabla_si_no(10,0,c(4:11),aparece_sec = 0,incl_na = 1) %>% 
       left_join(operaciones) %>% left_join(tabla_encuesta[c('questionId',
                                                             'wildcard')] %>% unique()) 
 dt<- dt[,-1] %>% select(wildcard,everything(),-seccion,-questionId) %>%
       plyr::rename(c('wildcard'='¿Cuáles de los siguientes medios de promoción utilizan?'))
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 
-dt <- tabla_si_no(10,0,c(12:16),aparece_sec = 0) %>% 
+dt <- tabla_si_no(10,0,c(12:16),aparece_sec = 0,incl_na = 1) %>% 
       left_join(operaciones) %>% left_join(tabla_encuesta[c('questionId',
                                                             'wildcard')] %>% unique()) 
 dt<- dt[!is.na(dt$wildcard),-1] %>% select(wildcard,everything(),-seccion,-questionId) %>%
       plyr::rename(c('wildcard'='¿Utilizan "social media" como medio de promoción?'))
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```
 
 ## 11. Tecnologías de Información
 <br>
 ```{r, echo=FALSE,message=FALSE}
-dt <- tabla_si_no(11,0,c(1:5))
+dt <- tabla_si_no(11,0,c(1:5),incl_na = 1)
 colnames(dt)[1] <- 'Planeación'
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 
-dt <- tabla_si_no(11,0,c(6:8))
+dt <- tabla_si_no(11,0,c(6:8),incl_na = 1)
 colnames(dt)[1] <- 'Seguridad'
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 
-dt <- tabla_si_no(11,0,c(9:11))
+dt <- tabla_si_no(11,0,c(9:11),incl_na = 1)
 colnames(dt)[1] <- 'Internet y redes sociales'
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 
-dt <- tabla_si_no(11,0,c(12:13))
+dt <- tabla_si_no(11,0,c(12:13),incl_na = 1)
 colnames(dt)[1] <- 'Sistema administrativo "back office"'
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 
-dt <- tabla_si_no(11,0,c(14:15))
+dt <- tabla_si_no(11,0,c(14:15),incl_na = 1)
 colnames(dt)[1] <- 'Colaboración y administración documental'
-panderOptions('table.split.table', 300)      
-pander(dt)
+kable(dt, format = "latex", booktabs = T,longtable = T) %>%
+  kable_styling(full_width = F,position = "left",font_size = 8,latex_options = c("repeat_header"))  %>%
+  column_spec(1,width = "8em") %>%
+  column_spec(2,bold = T) %>%
+  collapse_rows(columns = 1)
 ```

@@ -148,25 +148,22 @@ filtro <- c('distribucion_suma_asegurada','distribucion_anios','distribucion_eda
 distribuciones <- diccionario_solo_resumen %>% filter(tipo_tabla %in% filtro) %>% mutate(seccion_subseccion = paste(seccion,subseccion,sep='_'))
 
 resultado_resumen_diferentes <- create_empty_df()
-apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_1'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+apply(distribuciones,1, function(x) seguros_si_no(x['columna_1'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
 distribucion_col_1 <- resultado_resumen_diferentes %>% as.data.frame()  %>% rename(c('valor_1' = 'valor_1_1',
-                                                                                     'valor_2' = 'valor_2_1',
-                                                                                     'N/A' = 'N/A_1'))
+                                                                                     'valor_2' = 'valor_2_1'))
 
 #columna 3
 resultado_resumen_diferentes <- create_empty_df()
-apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_3'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+apply(distribuciones,1, function(x) seguros_si_no(x['columna_3'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
 distribucion_col_3 <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('valor_1' = 'valor_1_3',
-                                                                                    'valor_2' = 'valor_2_3',
-                                                                                    'N/A' = 'N/A_3'))
+                                                                                    'valor_2' = 'valor_2_3'))
 
 
 #columna 4
 resultado_resumen_diferentes <- create_empty_df()
-apply(distribuciones,1, function(x) resumenes_diferentes_func(x['columna_4'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
+apply(distribuciones,1, function(x) seguros_si_no(x['columna_4'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
 distribucion_col_4 <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('valor_1' = 'valor_1_4',
-                                                                                    'valor_2' = 'valor_2_4',
-                                                                                    'N/A' = 'N/A_4'))
+                                                                                    'valor_2' = 'valor_2_4'))
 
 
 # Calculamos la suma asegurada, edad y años promedio
@@ -373,12 +370,12 @@ valor_promedio_r <- valor_promedio %>%
                     group_by(seccion) %>% dplyr::summarize(Promedio = mean(valor,na.rm = T))
 
 # Convertimos a porcentaje
-columnas_percent <- c("valor_1","valor_2","N/A","valor_1_2","valor_2_2","N/A_2","valor_1_3","valor_2_3","N/A_3",
-                      "valor_1_4","valor_2_4","N/A_4","valor_1_5","valor_2_5")
+columnas_percent <- c("valor_1","valor_2","valor_1_2","valor_2_2","valor_1_3","valor_2_3",
+                      "valor_1_4","valor_2_4","valor_1_5","valor_2_5")
 sub_total[columnas_percent] <- apply(sub_total[columnas_percent],2, function(x) mapply(cambiar_porcent,x))
 
-columnas_percent <- c("valor_1_1","valor_2_1","N/A_1","valor_1_3","valor_2_3","N/A_3",
-                      "valor_1_4","valor_2_4","N/A_4")
+columnas_percent <- c("valor_1_1","valor_2_1","valor_1_3","valor_2_3",
+                      "valor_1_4","valor_2_4")
 distribucion_total[columnas_percent] <- apply(distribucion_total[columnas_percent],2, function(x) mapply(cambiar_porcent,x))
 
 columnas_percent <- c('H%','M%')
