@@ -40,8 +40,8 @@ preguntas<-unique(unlist(strsplit(preguntas$questionId_tabla, split=",")))
 #tabla_encuestas<-read_csv('Proyectos/Otros/kerma/data/raw/respuestas_despachos/20170914_encuesta_prueba.csv', col_types = cols(.default = "c"))
 
 #read_csv('Proyectos/Otros/kerma/data/raw/respuestas_despachos_2/User14.csv')
-filesEncuesta <- list.files(path = "Proyectos/Otros/kerma/data/raw/respuestas_despachos_2/", pattern= "user")
-tabla_encuestas <- rbindlist(lapply(paste("Proyectos/Otros/kerma/data/raw/respuestas_despachos_2/",filesEncuesta, sep="/"), 
+filesEncuesta <- list.files(path = "Proyectos/Otros/kerma/data/raw/respuestas_despachos/", pattern= "user")
+tabla_encuestas <- rbindlist(lapply(paste("Proyectos/Otros/kerma/data/raw/respuestas_despachos/",filesEncuesta, sep="/"), 
                                     importar_encuesta)) %>% as.data.frame()
 
 # Cambiamos la columna de valueNumeric a numérica
@@ -57,7 +57,7 @@ tabla_encuestas[c('description_1_t','description_2_t','description_t')] <- apply
 
 preguntas <- as.numeric(preguntas)
 tabla_encuestas$questionId <- sapply(tabla_encuestas$questionId,as.numeric)
-tabla_encuestas_f  <- tabla_encuestas %>% filter(questionId %in% preguntas) %>%
+tabla_encuestas_f  <- tabla_encuestas %>% #filter(questionId %in% preguntas) %>%
                       mutate(id_unico_pregunta = ifelse((is.na(description_2))&(is.na(description_1))&(is.na(description)), questionId,
                                                   ifelse((is.na(description_2))&(is.na(description_1))&(!is.na(description)),paste(questionId,description_t,sep='_'),
                                                     ifelse((is.na(description_2))&(!is.na(description_1))&(is.na(description)),paste(questionId,description_1_t,sep='_'),

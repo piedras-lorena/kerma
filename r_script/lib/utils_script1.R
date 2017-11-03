@@ -13,7 +13,7 @@ convertir_vector<- function(row){
 }
 
 importar_encuesta<-function(path_df){
-  df<-read_csv(path_df,col_types=cols(.default = "c")) %>% 
+  df<-read_csv(path_df,col_types=cols(.default = "c"),na = c("-1.00","","N/A")) %>% 
     dplyr::select(-matches('^X[0-9]+'))
 }
 
@@ -36,7 +36,8 @@ operaciones_col <- function(columna_1,columna_2,columna_3,funcion,nombre_columna
       tabla_encuesta_wide[,c(columna_1,columna_2)] <<- sapply(tabla_encuesta_wide[,c(columna_1,columna_2)],
                                                               as.numeric)
       if(funcion=='suma'){
-        tabla_reporte[nombre_columna_nueva] <<- tabla_encuesta_wide[columna_1] + tabla_encuesta_wide[columna_2]
+        tabla_reporte[nombre_columna_nueva] <<- rowSums(tabla_encuesta_wide[c(columna_1,columna_2)],na.rm = T)
+        #tabla_encuesta_wide[columna_1] + tabla_encuesta_wide[columna_2]
         
       } else if(funcion == 'division'){
         tabla_reporte[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) as.numeric(x[columna_2]) / as.numeric(x[columna_1]))
@@ -82,7 +83,7 @@ operaciones_col_1 <- function(columna_1,columna_2,nombre_columna_nueva){
     
   } else {
     tabla_encuesta_wide[,c(columna_1,columna_2)] <<- sapply(tabla_encuesta_wide[,c(columna_1,columna_2)],as.numeric)
-    tabla_reporte_col_1[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) as.numeric(x[columna_1])/(as.numeric(x[columna_1]) + as.numeric(x[columna_2])))
+    tabla_reporte_col_1[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) as.numeric(x[columna_1])/sum(as.numeric(x[columna_1]),as.numeric(x[columna_2]),na.rm = T))
     
   }
 }
@@ -96,7 +97,7 @@ operaciones_col_2 <- function(columna_1,columna_2,nombre_columna_nueva){
     
   } else {
     tabla_encuesta_wide[,c(columna_1,columna_2)] <<- sapply(tabla_encuesta_wide[,c(columna_1,columna_2)],as.numeric)
-    tabla_reporte_col_2[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) as.numeric(x[columna_1])/(as.numeric(x[columna_1]) + as.numeric(x[columna_2])))
+    tabla_reporte_col_2[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) as.numeric(x[columna_1])/sum(as.numeric(x[columna_1]),as.numeric(x[columna_2]),na.rm = T))
     
   }
 }

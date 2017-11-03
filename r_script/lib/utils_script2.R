@@ -19,7 +19,7 @@ resumenes_diferentes_func <- function(columna_1,seccion_subseccion,renglon, tipo
   renglon <- as.numeric(renglon)
   columna_1_cp <- paste(columna_1,'possibleanswers',sep = '_')
   #tabla <- tabla_encuestas_f %>% filter(id_unico_pregunta == columna_1 & respuesta_unica != 'N/A' )
-  tabla <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% c(columna_1,columna_1_cp) & respuesta_unica != 'N/A' )
+  tabla <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% c(columna_1,columna_1_cp) & respuesta_unica != 'N/A' & !is.na(respuesta_unica))
   if(nrow(tabla) == 0){
     res_grupos <- data_frame(seccion= paste(seccion_subseccion,renglon, sep = '_'), valor_1 = NA)
     
@@ -60,11 +60,12 @@ cambiar_porcent<- function(x){
 seguros_si_no <- function(columna_1,seccion_subseccion,renglon, tipo_tabla){
   renglon <- as.numeric(renglon)
   columna_1_sp <- gsub('_possibleanswers$','',columna_1)
-  tabla <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% c(columna_1,columna_1_sp) & respuesta_unica != 'N/A')
+  tabla <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% c(columna_1,columna_1_sp) & respuesta_unica != 'N/A' & !is.na(respuesta_unica))
   if(nrow(tabla) == 0){
     res_grupos <- data_frame(seccion= paste(seccion_subseccion,renglon, sep = '_'), valor_1 = NA)
     
   } else {
+      tabla <- tabla %>% filter(tipo_respuesta != "numeric")
       total_res <- length(tabla$userId %>% unique())
       #total_res <- length(tabla['respuesta_unica'] %>% unique())
       res_grupos <- tabla %>% group_by(respuesta_unica) %>% 

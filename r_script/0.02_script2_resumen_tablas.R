@@ -45,6 +45,15 @@ preguntas_submuestras <- read_csv('Proyectos/Otros/kerma/data/interim/mappeo_pre
                          dplyr::select(seccion_subseccion,submuestra) %>% unique()
 
 tabla_reporte <- tabla_reporte %>% left_join(preguntas_submuestras) 
+operaciones <- read_csv('Proyectos/Otros/kerma/data/interim/operaciones_preguntas - col_1.csv',
+                        col_types =  cols(.default = "c")) %>%
+              mutate(columna_1 = ifelse(is.na(categoria_pregunta_1),pregunta_1,paste(pregunta_1,categoria_pregunta_1,sep='_')),
+              columna_2 = ifelse(!is.na(pregunta_2) & !is.na(categoria_pregunta_2),paste(pregunta_2,categoria_pregunta_2,sep='_'),
+                            ifelse(!is.na(pregunta_2) & is.na(categoria_pregunta_2),pregunta_2,NA)),
+              columna_3 = ifelse(!is.na(pregunta_3) & !is.na(categoria_pregunta_2),paste(pregunta_3,categoria_pregunta_2,sep='_'),
+                            ifelse(!is.na(pregunta_3) & is.na(categoria_pregunta_2),pregunta_3,NA)),
+              nombre_columna_nueva = ifelse(is.na(subseccion),paste(seccion,'0',renglon,sep='_') , paste(seccion,subseccion,renglon,sep='_'))) %>% 
+              dplyr::select(columna_1,columna_2,columna_3,funcion,nombre_columna_nueva)
 
 # Resumen normal ----------------------------------------------------------
 resumen_normal <- tabla_reporte %>% filter((seccion_sola %!in% diccionario_diferentes$seccion_solo) & (seccion_subseccion %!in% diccionario_diferentes$seccion_subseccion) & 
@@ -108,8 +117,7 @@ sub_2 <- sub %>% filter(!is.na(columna_2))
 apply(sub_2,1, function(x) resumenes_diferentes_func(x['columna_2'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
 resultado_col_2_resumen <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('respuesta_unica'= 'respuesta_unica_2',
                                                                                          'valor_1' = 'valor_1_2',
-                                                                                         'valor_2' = 'valor_2_2',
-                                                                                         'N/A' = 'N/A_2'))
+                                                                                         'valor_2' = 'valor_2_2'))
 
 # Hacemos la columna número tres
 
@@ -117,8 +125,7 @@ resultado_resumen_diferentes <- create_empty_df()
 apply(sub_2,1, function(x) resumenes_diferentes_func(x['columna_3'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
 resultado_col_3_resumen <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('respuesta_unica'= 'respuesta_unica_3',
                                                                                          'valor_1' = 'valor_1_3',
-                                                                                         'valor_2' = 'valor_2_3',
-                                                                                         'N/A' = 'N/A_3'))
+                                                                                         'valor_2' = 'valor_2_3'))
 
 # Hacemos la columna número cuatro
 
@@ -126,8 +133,7 @@ resultado_resumen_diferentes <- create_empty_df()
 apply(sub_2,1, function(x) resumenes_diferentes_func(x['columna_4'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
 resultado_col_4_resumen <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('respuesta_unica'= 'respuesta_unica_4',
                                                                                          'valor_1' = 'valor_1_4',
-                                                                                         'valor_2' = 'valor_2_4',
-                                                                                         'N/A' = 'N/A_4'))
+                                                                                         'valor_2' = 'valor_2_4'))
 
 # Hacemos la columna número cinco
 
@@ -135,8 +141,7 @@ resultado_resumen_diferentes <- create_empty_df()
 apply(sub_2,1, function(x) resumenes_diferentes_func(x['columna_5'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
 resultado_col_5_resumen <- resultado_resumen_diferentes %>% as.data.frame() %>% rename(c('respuesta_unica'= 'respuesta_unica_5',
                                                                                          'valor_1' = 'valor_1_5',
-                                                                                         'valor_2' = 'valor_2_5',
-                                                                                         'N/A' = 'N/A_5'))
+                                                                                         'valor_2' = 'valor_2_5'))
 
 
 sub_total <- resultado_col_1_resumen %>% left_join(resultado_col_2_resumen) %>% left_join(resultado_col_3_resumen) %>%
@@ -151,7 +156,8 @@ resultado_resumen_diferentes <- create_empty_df()
 apply(distribuciones,1, function(x) seguros_si_no(x['columna_1'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
 distribucion_col_1 <- resultado_resumen_diferentes %>% as.data.frame()  %>% rename(c('valor_1' = 'valor_1_1',
                                                                                      'valor_2' = 'valor_2_1'))
-
+prueba <- distribuciones %>% filter(seccion == '6' &  subseccion == '2'&  renglon == '5')
+seguros_si_no(prueba$columna_1,prueba$seccion_subseccion,prueba$renglon,prueba$tipo_tabla)
 #columna 3
 resultado_resumen_diferentes <- create_empty_df()
 apply(distribuciones,1, function(x) seguros_si_no(x['columna_3'],x['seccion_subseccion'],x['renglon'],x['tipo_tabla']))
@@ -275,13 +281,23 @@ resumen_promedio_hm <- resumen_diferentes_r %>% filter(tipo_tabla == 'promedio_h
 resumen_promedio_hm$valor <- sapply(resumen_promedio_hm$valor,as.numeric)
 
 resumen_promedio_hm <- resumen_promedio_hm  %>% dplyr::group_by(seccion) %>%
-                        dplyr::summarize(Promedio = mean(valor,na.rm = T),`H%` = mean(porcent_hombres,na.rm = T),
-                                         `M%` = mean(porcent_mujeres,na.rm = T),`25%`=quantile(valor, probs=0.25,na.rm = TRUE),
+                        dplyr::summarize(Promedio = mean(valor,na.rm = T),`25%`=quantile(valor, probs=0.25,na.rm = TRUE),
                                          `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
                                           Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T))
+operaciones_col1 <- operaciones %>% filter(grepl('^2_1_|^2_2_|^2_3_',nombre_columna_nueva)) %>% left_join(tabla_encuestas_f[c('id_unico_pregunta','valueNumeric','userId')],
+                                    by = c('columna_1'='id_unico_pregunta')) %>% left_join(tabla_encuestas_f[c('id_unico_pregunta','valueNumeric','userId')],
+                                    by = c('columna_2'='id_unico_pregunta','userId'='userId')) %>%
+                    mutate(total = ifelse(is.na(valueNumeric.x),valueNumeric.y,
+                                          ifelse(is.na(valueNumeric.y),valueNumeric.x,
+                                                 valueNumeric.y+valueNumeric.x))) %>% group_by(nombre_columna_nueva) %>% 
+                    dplyr::summarise(total = sum(total,na.rm = T), hombres = sum(valueNumeric.x,na.rm = T), 
+                                     mujeres = sum(valueNumeric.y,na.rm = T)) %>%
+                    plyr::rename(c('nombre_columna_nueva'='seccion')) %>%
+                    mutate(`M%` = mujeres/total, `H%` = hombres/total) %>% dplyr::select(seccion,`H%`,`M%`)
+resumen_promedio_hm <- resumen_promedio_hm  %>% left_join(operaciones_col1)
                         
 #Resumen si no con respuesta
-si_no_cr <- resumen_diferentes_r %>% filter(tipo_tabla == 'si_no_cr')
+si_no_cr <- resumen_diferentes_r %>% filter(tipo_tabla == 'si_no_cr' )
 
 total <- length(si_no_cr$userId  %>% unique())
 
