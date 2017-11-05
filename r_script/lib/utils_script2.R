@@ -15,10 +15,9 @@ create_empty_df <- function(){
   return(resultado_resumen_diferentes)
 }
 
-resumenes_diferentes_func <- function(columna_1,seccion_subseccion,renglon, tipo_tabla){
+resumenes_diferentes_func <- function(columna_1,seccion_subseccion,renglon, tipo_tabla, tabla_encuestas_f = tabla_encuestas_f){
   renglon <- as.numeric(renglon)
   columna_1_cp <- paste(columna_1,'possibleanswers',sep = '_')
-  #tabla <- tabla_encuestas_f %>% filter(id_unico_pregunta == columna_1 & respuesta_unica != 'N/A' )
   tabla <- tabla_encuestas_f %>% filter(id_unico_pregunta %in% c(columna_1,columna_1_cp) & respuesta_unica != 'N/A' & !is.na(respuesta_unica))
   if(nrow(tabla) == 0){
     res_grupos <- data_frame(seccion= paste(seccion_subseccion,renglon, sep = '_'), valor_1 = NA)

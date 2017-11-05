@@ -33,7 +33,8 @@ crear_tabla_reporte <- function(id_despacho){
                                                                   ifelse(as.numeric(valor) > as.numeric(`50%`) & as.numeric(valor) <= as.numeric(`75%`),'3er',
                                                                          ifelse(is.na(`25%`),NA,'4to')))),
                                           `VS PROM` = ifelse(as.numeric(valor) < as.numeric(Promedio),'Abajo','Arriba'))
-  filas_numeric = c('Promedio','25%','50%','75%','Alto','Bajo','Porcentaje','porcent_hombres','porcent_mujeres',#'H%','M%','valor_1','valor_2',
+  filas_numeric = c('Promedio','25%','50%','75%','Alto','Bajo','Porcentaje','porcent_hombres','porcent_mujeres','Más alto','Más bajo',
+                    #'H%','M%','valor_1','valor_2',
                     'Personal total','Edad','Años de exp.','Tarifa')
   tabla_reporte[,filas_numeric] <- sapply(tabla_reporte[,filas_numeric], function(x) round(as.numeric(x),digits = 2)) 
   filtro_percent <- c('porcent_hombres','porcent_mujeres')
@@ -119,12 +120,14 @@ tabla_compensaciones <- function(seccion,subseccion,tipo = 'personal_edad_anios'
   nombre_acronimo <- tabla_nombres_despachos %>% filter(id == id_despacho)
   if(tipo == 'personal_edad_anios'){
     dt <- tabla_reporte %>% filter(grepl(sprintf('^%s_',sec_subsec),seccion)) %>%
-          dplyr::select(nombre_viejo,valor,Promedio,`Personal total`,Edad,`Años de exp.`,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`) %>%
+          dplyr::select(nombre_viejo,valor,Promedio,`Personal total`,Edad,`Años de exp.`,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`,
+                        `Más alto`,`Más bajo`) %>%
           plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo),
                        'cuantil'=sprintf('Cuartil %s',nombre_acronimo$acronimo)))
   } else{
     dt <- tabla_reporte %>% filter(grepl(sprintf('^%s_',sec_subsec),seccion)) %>%
-          dplyr::select(nombre_viejo,valor,Promedio,`Personal total`,Tarifa,Edad,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`) %>%
+          dplyr::select(nombre_viejo,valor,Promedio,`Personal total`,Tarifa,Edad,`25%`,`50%`,`75%`,Alto,Bajo,cuantil,`VS PROM`,
+                        `Más alto`,`Más bajo`) %>%
           plyr::rename(c('valor'= toupper(nombre_acronimo$acronimo),
                        'cuantil'=sprintf('Cuartil %s',nombre_acronimo$acronimo)))    
   }
@@ -148,12 +151,13 @@ formato_primera_col <- function(dt,nombre_1,nombre_2,filtro_categoria){
 }
 
 
-bar_plot <- function(df,x,y,titulo_x,titulo_y,fill = c(),pallete = paleta_colores_1,tamanio_letra = 18){
+bar_plot <- function(df,x,y,titulo_x,titulo_y,fill = c(),pallete = paleta_colores_1,tamanio_letra = 18,
+                     nombre_cuadro = 'Categoría'){
   y <- sapply(gsub('%','',y),as.numeric)
   if(length(fill) != '0'){
     g <- ggplot(df, aes(x = reorder(x,y), y = y , fill = fill)) + geom_bar(position = 'dodge',stat="identity") + coord_flip()  + 
       labs(x = sprintf('%s\n\n',titulo_x), y = sprintf('\n\n%s',titulo_y)) +
-      scale_fill_manual(values = pallete) +  theme_bw(base_size = tamanio_letra) 
+      scale_fill_manual(values = pallete, name = nombre_cuadro) +  theme_bw(base_size = tamanio_letra) 
   } else{
     g <- ggplot(df, aes(x = reorder(x,y), y = y)) + geom_bar(position = 'dodge',stat="identity") + coord_flip()  + 
       labs(x = sprintf('%s\n\n',titulo_x), y = sprintf('\n\n%s',titulo_y)) +
@@ -164,6 +168,6 @@ bar_plot <- function(df,x,y,titulo_x,titulo_y,fill = c(),pallete = paleta_colore
 
 poner_comas <- function(df,cols){
   df[cols] <- sapply(df[cols],as.numeric)
-  df[cols] <- apply(df[cols],2,function(x) format(x,big.mark=",", trim=TRUE) )
+  df[cols] <- apply(df[cols],2,function(x) format(round(x),big.mark=",", trim=TRUE) )
   return(df)
 }

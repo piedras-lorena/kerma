@@ -56,10 +56,11 @@ library(ggplot2)
 options(scipen = 999)
 
 setwd("/home/lorena/Proyectos/Otros/kerma/r_script/reporte/")
-source('../lib/utils_script3.R')
+source('../lib/utils_aux_submuestra.R')
 
   
-id_despacho <- id
+id_despacho <- 38
+id_submuestra <- '1'
 
 tabla_reporte <- crear_tabla_reporte(id_despacho)
 tabla_nombres_despachos <- read_csv('../../data/interim/UsuariosActivos.csv',
@@ -111,111 +112,13 @@ columnas <- c(nombre_acronimo$acronimo,'Promedio','25%','50%','75%','Alto','Bajo
 
 1. Información General
 ------
-### 1.1. Introducción
-<br>
-La realización de esta encuesta surgió de la necesidad de contar con herramientas que nos permitan medir el desempeño de los despachos de abogados, para obtener indicadores que nos guíen hacia la eficiencia, con un mayor control del desempeño.
 
-*"La información por sí sola no constituye conocimiento hasta que, a partir de ella, se piensa algo."*
-*Rüdiger Safranski*
-<br>
+### Participantes de la Submuestra
+1. Galicia Abogados
+2. Ritch, Mueller, Heather y Nicolau
+3. Nader, Hayaux & Goebel
+4. Mijares, Angoitia, Cortés y Fuentes
 
-### 1.2. Áreas contempladas en la encuesta
-- **Estructura del personal en el despacho**: Cantidad de personal antigüedad, edad, años de experiencia, rotación y razones.
-<br>
-
-- **Compensaciones y prestaciones**: Sueldo mensual, anual y compensaciones por nivel prestaciones e incremento de sueldos proyectados.
-<br>
-
-- **Tarifas y rentabilidad**: Ingresos del despacho, horas cargadas y facturadas anualmente, tarifas horarias y rentabilidad de los abogados.
-<br>
-
-- **Rotación de cuentas por cobrar**
-<br>
-
-- **Mercadotecnia**: Presupuesto, medios de promoción, eventos, encuestas de satisfacción al cliente, entre otras.
-<br>
-
-- **Tecnología**
-
-
-\pagebreak
-
-## Participantes
-
-1. Arochi & Lindner
-2. AVA
-3. Basham, Ringe y Correa
-4. Bufete Ocampo, Salcedo, Alvarez del Castillo y Ocampo
-5. Chevez, Ruiz, Zamarripa y Cia
-6. Cuatrecasas
-7. Cuesta Campos y Asociados
-8. Deloitte
-9. EY
-10. Galicia Abogados
-11. García y Stahl
-12. Gardere Arena y Asociados
-13. Greenberg Traurig
-14. Haynes and Boone
-15. Hogan Lovells BSTL
-16. Holland & Knight
-17. Littler Mexico
-18. Marván, González Graf y González Larrazolo
-19. Mijares, Angoitia, Cortés y Fuentes
-20. Nader, Hayaux & Goebel
-21. Rios Zertuche, González Lutteroth Y Rodríguez
-22. Ritch, Mueller, Heather y Nicolau
-23. RomoPaillés
-24. Sánchez Devanny
-25. SMPS Legal
-26. Uhthoff, Gómez Vega & Uhthoff
-27. Valdes Abascal Abogados
-28. Von Wobeser y Sierra
-
-
-\pagebreak
-
-## Metodología
-
-
-|        |            |
-| ------------- | ---------------------------------- |
-| **Marco muestral** | El marco muestral utilizado en este estudio se basó en una lista de abogados establecidos en la Ciudad de México |
-| **Población objetico del estudio** | El personal que respondió las preguntas fue seleccionado por cada despacho|
-| **Fecha de levantamiento** |       |
-| **Tamaño de la muestra** | Para la realización de este estudio, se tomó una muestra de 26 despachos de abogados|
-| **Método de recolección de datos** | Se realizó un sondeo tipo auto llenado vía web y por el mismo medio se recibieron las respuestas|
-
-<br>
-
-Las variables analizadas en esta encuesta se categorizan en las siguientes áreas:
-
-1. Estructura del persona
-2. Compensaciones y prestaciones
-3. Tarifas y rentabilidad
-4. Rotación de cuentas por cobrar
-5. Mercadotecnia
-6. Tecnologías de la información
-
-\pagebreak
-
-## Descripción de tablas
-
-Para una mejor comprensión de los resultados, se presentan las siguientes descripciones:
-
-<br>
-
-
-|        |            |
-| ------------- | ---------------------------------- |
-| **Inciales del despacho** | Para fines prácticos se tomaron las iniciales de cada despacho. Con fondo gris se representan los datos contestado por el despacho **individualmente**|
-| **Promedio** | El promedio es la suma de todos los datos de la muestra dividida por el tamaño de la muestra.|
-| **Cuartiles** | Son valores que dividen el conjunto de datos, ordenados de menor a mayor, en cuatro grupos con el mismo número de elementos. |
-| **25%** | Los resultados ubicados entre el dato más bajo y el 25% de los despachos. |
-| **50%** | Los resultados mayores del 25% de la población hasta el 50% |
-| **75%** | Los resultados mayores del 50% de la población hasta el 75% |
-| **Alto** | Este resultato representa el dato más **alto** dentro de la población |
-| **Bajo** | Este resultado representa el dato más **bajo** dentro de la población | 
-| **Cuartil iniciales despacho** | Se representa la posición de la firma dentro de los cuartiles. Cuando este valor se encuentra en "1er", quiere decir que la firma se encuentra dentro de el 25% más bajo de las respuestas. Si este es "2ndo", quiere la empresa se se encuentra entre el 25% y 50% de los valores del resto de los despachos. "3er", la empresa se encuentra entre 50% y 75%. "4to" la empresa se encuentra por arriba del 75% de las empresas| 
 
 \pagebreak
 

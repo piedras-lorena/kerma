@@ -152,8 +152,40 @@ tabla_reporte_col_2 <- data.frame(userId=tabla_encuesta_wide$userId)
 apply(operaciones_col1,1,function(x) operaciones_col_2(x['columna_2'],x['columna_1'],x['nombre_columna_nueva']))
 tabla_reporte_col_2_l <- tabla_reporte_col_2 %>% gather(key = seccion, value= porcent_mujeres,-userId)
 
+# Importamos tablas de operaciones de columna 2 y 3 para sueldos
+operaciones_sueldo_1 <- read_csv('Proyectos/Otros/kerma/data/interim/operaciones_preguntas - col_2.csv',
+                        col_types =  cols(.default = "c")) %>%
+  mutate(columna_1 = ifelse(is.na(categoria_pregunta_1),pregunta_1,paste(pregunta_1,categoria_pregunta_1,sep='_')),
+         columna_2 = ifelse(!is.na(pregunta_2) & !is.na(categoria_pregunta_2),paste(pregunta_2,categoria_pregunta_2,sep='_'),
+                            ifelse(!is.na(pregunta_2) & is.na(categoria_pregunta_2),pregunta_2,NA)),
+         columna_3 = ifelse(!is.na(pregunta_3) & !is.na(categoria_pregunta_2),paste(pregunta_3,categoria_pregunta_2,sep='_'),
+                            ifelse(!is.na(pregunta_3) & is.na(categoria_pregunta_2),pregunta_3,NA)),
+         nombre_columna_nueva = ifelse(is.na(subseccion),paste(seccion,'0',renglon,sep='_') , paste(seccion,subseccion,renglon,sep='_'))) %>% 
+  dplyr::select(columna_1,columna_2,columna_3,funcion,nombre_columna_nueva)
+
+operaciones_sueldo_2 <- read_csv('Proyectos/Otros/kerma/data/interim/operaciones_preguntas - col_3.csv',
+                          col_types =  cols(.default = "c")) %>%
+  mutate(columna_1 = ifelse(is.na(categoria_pregunta_1),pregunta_1,paste(pregunta_1,categoria_pregunta_1,sep='_')),
+         columna_2 = ifelse(!is.na(pregunta_2) & !is.na(categoria_pregunta_2),paste(pregunta_2,categoria_pregunta_2,sep='_'),
+                            ifelse(!is.na(pregunta_2) & is.na(categoria_pregunta_2),pregunta_2,NA)),
+         columna_3 = ifelse(!is.na(pregunta_3) & !is.na(categoria_pregunta_2),paste(pregunta_3,categoria_pregunta_2,sep='_'),
+                            ifelse(!is.na(pregunta_3) & is.na(categoria_pregunta_2),pregunta_3,NA)),
+         nombre_columna_nueva = ifelse(is.na(subseccion),paste(seccion,'0',renglon,sep='_') , paste(seccion,subseccion,renglon,sep='_'))) %>% 
+  dplyr::select(columna_1,columna_2,columna_3,funcion,nombre_columna_nueva)
+
+tabla_reporte_sueldo <- data.frame(userId=tabla_encuesta_wide$userId)
+apply(operaciones_sueldo_1,1,function(x) operaciones_sueldo(x['columna_1'],x['columna_2'],x['funcion'],x['nombre_columna_nueva']))
+tabla_reporte_sueldo1_l <- tabla_reporte_sueldo %>% gather(key = seccion, value= sueldo_alto,-userId)
+
+tabla_reporte_sueldo <- data.frame(userId=tabla_encuesta_wide$userId)
+apply(operaciones_sueldo_2,1,function(x) operaciones_sueldo(x['columna_1'],x['columna_2'],x['funcion'],x['nombre_columna_nueva']))
+tabla_reporte_sueldo2_l <- tabla_reporte_sueldo %>% gather(key = seccion, value= sueldo_bajo,-userId)
+
+
+
 # Juntamos todas las tablas en una
-tabla_reporte_todas <- tabla_reporte_l %>% left_join(tabla_reporte_col_1_l) %>% left_join(tabla_reporte_col_2_l)
+tabla_reporte_todas <- tabla_reporte_l %>% left_join(tabla_reporte_col_1_l) %>% left_join(tabla_reporte_col_2_l) %>%
+                       left_join(tabla_reporte_sueldo1_l) %>% left_join(tabla_reporte_sueldo2_l)
 
 
 

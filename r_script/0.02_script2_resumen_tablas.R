@@ -21,8 +21,9 @@ tabla_reporte <- read_csv('Proyectos/Otros/kerma/data/interim/tabla_reporte_prue
                             seccion = col_character(),
                             valor = col_character(),
                             porcent_hombres = col_double(),
-                            porcent_mujeres = col_double()
-                          )) %>% mutate(seccion_subseccion = gsub("_[0-9]*$",'',seccion),
+                            porcent_mujeres = col_double(),
+                            sueldo_alto = col_double(),
+                            sueldo_bajo = col_double())) %>% mutate(seccion_subseccion = gsub("_[0-9]*$",'',seccion),
                                         seccion_sola = gsub("_[0-9]*_[0-9]*$",'',seccion))
 
 submuestras <- read_csv('Proyectos/Otros/kerma/data/interim/submuestras - Hoja 1.csv',
@@ -315,7 +316,9 @@ personal_edad_anios['valor'] <- sapply(personal_edad_anios$valor,as.numeric)
 personal_edad_anios_r <- personal_edad_anios %>% dplyr::group_by(seccion) %>%
                          dplyr::summarize(Promedio = mean(valor,na.rm = T), `25%`=quantile(valor, probs=0.25,na.rm = TRUE),
                                         `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
-                                         Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T)) %>% left_join(mapeo_nombres %>%
+                                         Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T),
+                                        `Más alto` = max(sueldo_alto,na.rm = T),`Más bajo` = min(sueldo_bajo,na.rm = T)) %>% 
+                         left_join(mapeo_nombres %>%
                          dplyr::select(-respondido), by = c('seccion' = 'nombre_nuevo'))
 
 # Encontramos las secciones donde viene edad (2_17 y 21_18)
@@ -356,7 +359,7 @@ personal_edad_anios_r <- personal_edad_anios_r %>% left_join(temporal_edad_anios
 # PERSONAL TARIFA EDAD (metemos las preguntas 137,138,140,147)
 
 anios_exp <- tabla_encuestas_f %>% filter(grepl('^137|^138|^140|^147',questionId)) %>% mutate(nombre_viejo = 
-                                                                                                gsub('^[0-9]+_','',id_unico_pregunta))
+             gsub('^[0-9]+_','',id_unico_pregunta))
 
 anios_exp['respuesta_unica'] <- sapply(anios_exp$respuesta_unica,as.numeric)
 anios_exp_g <- anios_exp %>% filter(grepl('^137|^138',questionId)) %>% group_by(nombre_viejo,userId) %>% 
@@ -375,7 +378,9 @@ personal_tarifa_edad['valor'] <- sapply(personal_tarifa_edad$valor,as.numeric)
 personal_tarifa_edad_r <- personal_tarifa_edad %>% dplyr::group_by(seccion) %>%
                          dplyr::summarize(Promedio = mean(valor,na.rm = T), `25%`=quantile(valor, probs=0.25,na.rm = TRUE),
                         `50%`=quantile(valor, probs=0.5,na.rm = T),`75%`=quantile(valor, probs=0.75,na.rm = T),
-                         Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T)) %>% left_join(mapeo_nombres %>%
+                         Alto = max(valor,na.rm = T),Bajo = min(valor,na.rm = T),
+                        `Más alto` = max(sueldo_alto,na.rm = T),`Más bajo` = min(sueldo_bajo,na.rm = T)) %>% 
+                         left_join(mapeo_nombres %>%
                          dplyr::select(-respondido), by = c('seccion' = 'nombre_nuevo'))
 
 personal_tarifa_edad_r <- personal_tarifa_edad_r %>% left_join(anios_exp_todos) %>% dplyr::select(-nombre_viejo)
@@ -411,6 +416,8 @@ tabla_final <- rbindlist(list(resumen_normal_r,sub_total,distribucion_total,resu
 # Sustituimos los valores de infinito
 tabla_final[mapply(is.infinite, Alto),'Alto'] <- NA
 tabla_final[mapply(is.infinite, Bajo),'Bajo'] <- NA
+tabla_final[mapply(is.infinite, `Más alto`),'Más alto'] <- NA
+tabla_final[mapply(is.infinite, `Más bajo`),'Más bajo'] <- NA
 
 write_csv(mapeo_nombres , 'Proyectos/Otros/kerma/data/interim/mappeo_nombres_resumen_reporte.csv')
 write_csv(tabla_final , 'Proyectos/Otros/kerma/data/interim/tabla_resumen_final.csv')

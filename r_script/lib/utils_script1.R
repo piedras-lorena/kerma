@@ -101,3 +101,27 @@ operaciones_col_2 <- function(columna_1,columna_2,nombre_columna_nueva){
     
   }
 }
+
+
+operaciones_sueldo <- function(columna_1,columna_2,funcion,nombre_columna_nueva){
+  error_c1<-try(tabla_encuesta_wide[columna_1],TRUE)
+  error_c2<-try(tabla_encuesta_wide[columna_2],TRUE)
+  if(funcion == 'sueldo_base') {
+    if(inherits(error_c1,'try-error') == TRUE | inherits(error_c2,'try-error') == TRUE){
+      tabla_reporte_sueldo[nombre_columna_nueva] <<- NA
+      mapeo_nombres[i,'respondido'] <<- 0
+      
+    } else{
+      tabla_encuesta_wide[,c(columna_1,columna_2)] <<- sapply(tabla_encuesta_wide[,c(columna_1,columna_2)],
+                                                              as.numeric)
+      tabla_reporte_sueldo[nombre_columna_nueva] <<- apply(tabla_encuesta_wide,1,function(x) as.numeric(x[columna_2]) * (12 + as.numeric(x[columna_1])/30))
+    }
+  } else{
+    if(inherits(error_c1,'try-error')==TRUE){
+      tabla_reporte_sueldo[nombre_columna_nueva] <<- NA
+      
+    } else{
+      tabla_reporte_sueldo[nombre_columna_nueva] <<- tabla_encuesta_wide[columna_1]
+    }
+  }
+}
